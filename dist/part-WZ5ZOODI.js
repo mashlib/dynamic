@@ -1,0 +1,1 @@
+function o(t){let e=()=>{throw new Error(`Context '${t}' is missing. Is the component inside its provider?`)};return new Proxy({},{get:e,set:e,has:e,ownKeys:e,getOwnPropertyDescriptor:e,defineProperty:e,deleteProperty:e})}var s=Symbol("file-explorer"),x=o("file-explorer");export{s as a,x as b};

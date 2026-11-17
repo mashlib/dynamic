@@ -1,0 +1,1 @@
+import{a as t,b as u}from"./part-D4NMSO2J.js";function m(e,r,n,o){return e[r]=o,new t(e,{context:n,subscribe:!0,callback:c=>{e[r]=c,e.requestUpdate()}})}function x(e,r,n){return new u(e,{context:r,initialValue:n})}export{m as a,x as b};

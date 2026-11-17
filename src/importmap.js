@@ -146,7 +146,7 @@ const map = {
 // rather than a second copy from the source files. dist/manifest.js sets this.
 const dist = window.MASHLIB_DIST
 
-if (dist) for (const [specifier, file] of Object.entries(dist.entries)) map.imports[specifier] = dist.base + file
+if (dist) for (const [specifier, file] of Object.entries(dist.entries)) map.imports[specifier] = /^https?:/.test(file) ? file : dist.base + file
 
 script.textContent = JSON.stringify(map)
 

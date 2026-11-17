@@ -3,19 +3,19 @@
 // as before. This only makes the copy a server points at, so that a page asks for a few
 // files instead of several hundred.
 //
-//   npm install          (once: esbuild, the only dependency)
+//   npm install          (once: esbuild, and the libraries at their pinned versions)
 //   npm run build        -> dist/          (add `-- --maps` for source maps, not committed)
 //
 // What it does, and nothing more:
 // - joins the modules, keeping every `import()` as a separate file fetched on first use;
 // - minifies;
-// - leaves the libraries (rdflib, lit, solid-logic, …) where they are, on the CDNs, resolved
-//   by the page's import map exactly as in the source tree;
+// - joins the libraries too (rdflib, solid-logic, lit, Web Awesome, CodeMirror, …), from
+//   node_modules at the versions src/importmap.js pins, instead of ~90 requests to CDNs;
 // - carries stylesheets and Turtle files inside the joined files (see `assets` below).
 //
-// Output: `mashlib.js`, the data browser, and a file each for solid-ui, solid-ui/components
-// and solid-panes. They share their code, so a pane added with --panes that imports
-// 'solid-ui' gets the copy already loaded.
+// Output: `mashlib.js`, the data browser, and a file each for what a pane from outside may
+// import by name: solid-ui, solid-ui/components, solid-panes, rdflib, solid-logic, lit and
+// lit-html. They share their code, so such a pane gets the copy already loaded.
 import { build } from 'esbuild'
 import { readFileSync, writeFileSync, rmSync, mkdirSync, copyFileSync, existsSync } from 'node:fs'
 import { resolve, dirname, relative, extname } from 'node:path'
@@ -66,9 +66,38 @@ for (const [specifier, file] of Object.entries(local)) {
 //   and handed over as a blob: URL (fetch and <link> both take one);
 // - anything else (images, a stylesheet with url() or @import) is addressed from the root
 //   of the source tree, which is still served beside dist/.
+// - a stylesheet that @imports others is written to dist/ as one file with the imports
+//   folded in (Web Awesome's theme from node_modules rather than the CDN), and its url()s
+//   pointed back at where they were.
 const TEXT = { '.css': 'text/css', '.ttl': 'text/turtle' }
+const WEBAWESOME = /^https:\/\/cdn\.jsdelivr\.net\/npm\/@awesome\.me\/webawesome@[^/]+\/(.+)$/
+function flattenCss (file, seen = new Set()) {
+  if (seen.has(file)) return ''
+  seen.add(file)
+  // Comments go first: one may hold an @import that is switched off, and folding a file into
+  // a comment would break everything after it.
+  const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  // Imports are set aside first, so that the url()s rewritten below are this file's own and
+  // not those of the files folded in (which are already rewritten).
+  const folded = []
+  return css
+    .replace(/@import\s+(?:url\(\s*)?(['"])([^'"]+)\1\s*\)?([^;]*);/g, (whole, quote, spec, rest) => {
+      if (rest.trim()) throw new Error(`${relative(root, file)}: an @import with conditions is not folded: ${whole}`)
+      const cdn = spec.match(WEBAWESOME)
+      if (/^https?:/.test(spec) && !cdn) return whole
+      const target = cdn ? resolve(root, 'node_modules/@awesome.me/webawesome', cdn[1]) : resolve(dirname(file), spec)
+      folded.push(flattenCss(target, seen))
+      return `/*@folded ${folded.length - 1}@*/`
+    })
+    .replace(/url\(\s*(['"]?)(?!data:|https?:|#)([^'")]+)\1\s*\)/g, (whole, quote, spec) => {
+      const target = resolve(dirname(file), spec)
+      if (target.includes('/node_modules/')) throw new Error(`${relative(root, file)}: url(${spec}) points into node_modules`)
+      return `url('${relative(out, target)}')`
+    })
+    .replace(/\/\*@folded (\d+)@\*\//g, (whole, n) => folded[Number(n)])
+}
 const HELPER = 'mashlib-build:assets'
-const stats = { inlined: 0, inlinedBytes: 0, linked: 0 }
+const stats = { inlined: 0, inlinedBytes: 0, linked: 0, folded: [] }
 const assets = {
   name: 'assets',
   setup (b) {
@@ -76,11 +105,13 @@ const assets = {
     b.onLoad({ filter: /.*/, namespace: 'mashlib-build' }, () => ({
       contents: `// dist/ sits beside the source tree: its root is one level up from any file here.
 export const root = new URL('../', import.meta.url)
+export const here = new URL('./', import.meta.url)
 export const text = (body, type) => new URL(URL.createObjectURL(new Blob([body], { type })))
 `,
       loader: 'js'
     }))
     b.onLoad({ filter: /\.js$/ }, (args) => {
+      if (args.path.includes('/node_modules/')) return null // libraries are joined as they are
       let code = readFileSync(args.path, 'utf8')
       if (!code.includes('import.meta.url')) return null
       let used = false
@@ -95,6 +126,11 @@ export const text = (body, type) => new URL(URL.createObjectURL(new Blob([body],
             stats.inlined++; stats.inlinedBytes += body.length
             return `__mashlibAssets.text(${JSON.stringify(body)}, ${JSON.stringify(type)})`
           }
+          if (type === 'text/css' && /@import/.test(body)) {
+            const name = relative(root, file).replace(/[^A-Za-z0-9.]+/g, '-')
+            if (!stats.folded.includes(name)) { stats.folded.push(name); writeFileSync(resolve(out, name), flattenCss(file)) }
+            return `new URL(${JSON.stringify(name)}, __mashlibAssets.here)`
+          }
         }
         stats.linked++
         return `new URL(${JSON.stringify(relative(root, file))}, __mashlibAssets.root)`
@@ -107,21 +143,66 @@ export const text = (body, type) => new URL(URL.createObjectURL(new Blob([body],
   }
 }
 
-// Bare specifiers: a package of this tree is joined in; anything else stays an import, for
-// the page's import map.
+// Bare specifiers. A package of this tree is joined in from its source file; a library is
+// joined in from node_modules (esbuild's own resolution); the few names the import map
+// spells differently from npm are translated here.
+const ALIAS = { SolidLogic: 'solid-logic', $rdf: 'rdflib' }
+const PANE_REGISTRY = /^https:\/\/cdn\.jsdelivr\.net\/npm\/pane-registry@[^/]+\/\+esm$/ // src/vendor/pane-registry.js
 const packages = {
   name: 'packages',
   setup (b) {
-    b.onResolve({ filter: /^[^./]/ }, (args) => {
-      if (args.path === HELPER) return null
+    b.onResolve({ filter: /^[^./]/ }, async (args) => {
+      if (args.pluginData === 'resolving' || args.namespace === 'mashlib-build' || /^mashlib-build:/.test(args.path)) return null
+      const again = (path) => b.resolve(path, { kind: args.kind, resolveDir: root, pluginData: 'resolving' })
+      if (PANE_REGISTRY.test(args.path)) return again('pane-registry')
       if (/^https?:/.test(args.path)) return { path: args.path, external: true }
+      if (ON_CDN[args.path]) return { path: args.path, external: true } // resolved by the import map (dist/manifest.js)
       if (local[args.path]) return { path: local[args.path] }
-      const prefix = args.path.match(/^solidos-nobuild\/(.+)$/)
-      if (prefix) return { path: resolve(root, prefix[1]) }
-      return { path: args.path, external: true }
+      const tree = args.path.match(/^solidos-nobuild\/(.+)$/)
+      if (tree) return { path: resolve(root, tree[1]) }
+      if (ALIAS[args.path]) return again(ALIAS[args.path])
+      const awesome = args.path.match(/^webawesome\/(.+)$/)
+      if (awesome) return { path: resolve(root, 'node_modules/@awesome.me/webawesome/dist', awesome[1]) } // not dist-cdn: that carries its own lit
+      return null
     })
   }
 }
+
+// The libraries a pane from outside imports by name. Each is an entry of its own, written
+// here: everything the package exports, and the whole of it as the default, as the CDN
+// builds give.
+const LIBRARIES = { rdflib: ['rdflib', '$rdf'], 'solid-logic': ['solid-logic', 'SolidLogic'], lit: ['lit'], 'lit-html': ['lit-html'] }
+const LIBRARY = 'mashlib-build:library:'
+for (const [name, specifiers] of Object.entries(LIBRARIES)) {
+  entryPoints[name] = LIBRARY + name
+  for (const specifier of specifiers) entries[specifier] = name + '.js'
+}
+const libraries = {
+  name: 'libraries',
+  setup (b) {
+    // mime-types asks node's `path` for extname() and nothing else.
+    b.onResolve({ filter: /^path$/ }, () => ({ path: 'path', namespace: 'mashlib-node' }))
+    b.onLoad({ filter: /.*/, namespace: 'mashlib-node' }, () => ({
+      contents: "export const extname = (p) => { const name = String(p).split(/[\\\\/]/).pop(); const dot = name.lastIndexOf('.'); return dot > 0 ? name.slice(dot) : '' }\nexport default { extname }\n",
+      loader: 'js'
+    }))
+    b.onResolve({ filter: /^mashlib-build:library:/ }, (args) => ({ path: args.path.slice(LIBRARY.length), namespace: 'mashlib-library' }))
+    b.onLoad({ filter: /.*/, namespace: 'mashlib-library' }, (args) => ({
+      contents: `export * from '${args.path}'\nimport * as all from '${args.path}'\nexport default all\n`,
+      resolveDir: root,
+      loader: 'js'
+    }))
+  }
+}
+
+// The login library starts a worker from a file beside itself, which joining would break,
+// so it alone stays on the CDN, at the version installed here (the one solid-logic asks for).
+const oidc = JSON.parse(readFileSync(resolve(root, 'node_modules/@uvdsl/solid-oidc-client-browser/package.json'), 'utf8')).version
+const ON_CDN = {
+  '@uvdsl/solid-oidc-client-browser': `https://cdn.jsdelivr.net/npm/@uvdsl/solid-oidc-client-browser@${oidc}/+esm`,
+  '@uvdsl/solid-oidc-client-browser/core': `https://cdn.jsdelivr.net/npm/@uvdsl/solid-oidc-client-browser@${oidc}/core/+esm`
+}
+Object.assign(entries, ON_CDN)
 
 rmSync(out, { recursive: true, force: true })
 mkdirSync(out, { recursive: true })
@@ -139,7 +220,9 @@ const result = await build({
   chunkNames: 'part-[hash]', // flat: every file is one level below the root (see `root` above)
   metafile: true,
   logLevel: 'warning',
-  plugins: [assets, packages]
+  platform: 'browser',
+  define: { 'process.env.NODE_ENV': '"production"', global: 'globalThis' },
+  plugins: [libraries, assets, packages]
 })
 
 // The page's side: which file is which package, the entry point for --mashlib-module, and
@@ -187,4 +270,4 @@ const all = Object.keys(outputs).filter(f => f.endsWith('.js'))
 const fmt = ([n, raw, gz]) => `${String(n).padStart(3)} files ${String(raw).padStart(5)} KB  ${String(gz).padStart(4)} KB gzipped`
 console.log('to start the data browser: ' + fmt(size([...start])))
 console.log('everything               : ' + fmt(size(all)))
-console.log(`stylesheets and Turtle carried inside: ${stats.inlined} (${Math.round(stats.inlinedBytes / 1024)} KB); addressed from the source tree: ${stats.linked}`)
+console.log(`stylesheets and Turtle carried inside: ${stats.inlined} (${Math.round(stats.inlinedBytes / 1024)} KB); folded into one file each: ${stats.folded.join(', ') || 'none'}; addressed from the source tree: ${stats.linked}`)

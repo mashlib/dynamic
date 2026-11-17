@@ -1,1 +1,0 @@
-import{ContextConsumer as o,ContextProvider as c}from"@lit/context";function m(e,r,n,t){return e[r]=t,new o(e,{context:n,subscribe:!0,callback:u=>{e[r]=u,e.requestUpdate()}})}function x(e,r,n){return new c(e,{context:r,initialValue:n})}export{m as a,x as b};

@@ -2,7 +2,7 @@
 
 [SolidOS](https://github.com/SolidOS) 3.1 — mashlib 3.1.0, solid-panes 5.1.0, solid-ui 5.1.0 and the panes — as plain ES modules. Same data browser, same panes, nothing compiled in: the shell and every pane are files loaded from URLs. Edit a file, reload. No Vite, no webpack, no TypeScript compiler, no plugins.
 
-Live: https://mashlib.github.io/dynamic/ (the data browser; add `?uri=<any public Solid resource>`). The component gallery is `gallery.html`.
+Live: https://mashlib.github.io/dynamic/ (the data browser, in its joined form; add `?uri=<any public Solid resource>`). The same browser straight from the source files is `mashlib/databrowser.html`; the component gallery is `gallery.html`.
 
 ## Point a server at it
 
@@ -30,7 +30,7 @@ This tree began as [solidos-nobuild](https://github.com/JavaScriptSolidServer/so
 The source needs no build: edit a file, reload. For delivery, the same files are joined so a page asks for tens of files rather than hundreds:
 
 ```sh
-npm install        # once: esbuild, the only dependency
+npm install        # once: esbuild, and the libraries at the versions src/importmap.js pins
 npm run build      # -> dist/
 ```
 
@@ -40,18 +40,20 @@ A server points at the joined copy the same way:
 jss start --mashlib-module https://mashlib.github.io/dynamic/dist/boot.js --panes https://example.org/my-pane.js
 ```
 
-`dist/databrowser.html?uri=…` is the stand-alone page. What the build does, all of it: joins the modules, keeping every `import()` as its own file fetched on first use; minifies; carries the stylesheets and Turtle files inside the joined files; leaves the libraries on the CDNs, resolved by the same import map. `dist/` sits beside the source tree and still takes images, and `src/importmap.js`, from it.
+`dist/databrowser.html?uri=…` is the stand-alone page. What the build does, all of it: joins the modules, and the libraries they use (rdflib, solid-logic, lit, Web Awesome, CodeMirror, from `node_modules`), keeping every `import()` as its own file fetched on first use; minifies; carries the stylesheets and Turtle files inside the joined files; folds a stylesheet's `@import`s into it. `dist/` sits beside the source tree and still takes images, fonts and `src/importmap.js` from it.
+
+One library stays on the CDN: the login client (`@uvdsl/solid-oidc-client-browser`), which starts a worker from a file beside itself. A pane added with `--panes` that imports `solid-ui`, `solid-panes`, `rdflib`, `solid-logic`, `lit` or `lit-html` by name gets the copy already loaded (`dist/manifest.js` tells the import map which file that is).
 
 On one JSON-LD document served by JSS with four external panes (17 Nov 2026):
 
 | | Requests for this tree | All requests | First pane drawn |
 |---|---|---|---|
 | source tree | 325 | 438 | about 0.8 s |
-| `dist/` | 51 | 164 | about 0.3 s |
+| `dist/` | 55 | 76 | about 0.25 s |
 
-To start the data browser `dist/` sends 828 KB of script (245 KB gzipped); upstream's bundle is 4,331 KB (1,170 KB gzipped). The 94 requests that remain for libraries (rdflib, solid-logic, lit, Web Awesome) are not joined.
+To start the data browser `dist/` sends 1,569 KB of script, libraries included (449 KB gzipped); upstream's bundle is 4,331 KB (1,170 KB gzipped). Of the 76 requests, 2 go to a CDN.
 
-Checked against the joined copy: `SHELL_URL=http://localhost:8731/dist/databrowser.html node tests/shell.mjs`, and `tests/pod.mjs` on a pod started with `dist/boot.js`.
+Checked against the joined copy: `SHELL_URL=http://localhost:8731/dist/databrowser.html node tests/shell.mjs`; `tests/pod.mjs` on a pod started with `dist/boot.js`; and `node tests/same-layout.mjs`, which lays the same pages out from the source tree and from `dist/` and compares every element's box.
 
 ## Loaded on first use
 
@@ -78,7 +80,7 @@ Measured on one JSON-LD document served by JSS with four external panes (uncompr
 python3 -m http.server 8731   # any static server
 ```
 
-- `index.html` — opens the data browser (`?uri=` passed on).
+- `index.html` — opens the data browser's joined copy, `dist/databrowser.html` (`?uri=` passed on).
 - `gallery.html` — gallery of every component (mock auth). `?smoke` runs 23 click-through checks, `?tags` checks all 27 tags register.
 - `login.html` — real Solid login through `solid-ui-provider` → SolidAuth → solid-logic. `?smoke` runs 10 checks.
 - `mashlib/databrowser.html` — **SolidOS itself**: mashlib's shell, solid-panes and every registered pane. On a pod, the page's own URL is the subject, as upstream; locally, `?uri=` picks one (e.g. a WebID, a folder, a Turtle file).

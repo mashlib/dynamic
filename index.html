@@ -6,13 +6,14 @@
   <title>mashlib dynamic</title>
   <meta name="description" content="SolidOS 3.1 as plain ES modules: the data browser and its panes, loaded from URLs with no build.">
   <script>
-    // This address is the data browser. ?uri=<resource> says what to show; with none, a
-    // public profile on the SolidOS test pod.
+    // This address is the data browser, in its joined form (dist/). ?uri=<resource> says what
+    // to show; with none, a public profile on the SolidOS test pod. The same browser straight
+    // from the source files is mashlib/databrowser.html.
     var uri = new URL(location.href).searchParams.get('uri') || 'https://testingsolidos.solidcommunity.net/profile/card#me'
-    location.replace('mashlib/databrowser.html?uri=' + encodeURIComponent(uri))
+    location.replace('dist/databrowser.html?uri=' + encodeURIComponent(uri))
   </script>
 </head>
 <body>
-  <p><a href="mashlib/databrowser.html?uri=https%3A%2F%2Ftestingsolidos.solidcommunity.net%2Fprofile%2Fcard%23me">Open the data browser</a> · <a href="gallery.html">component gallery</a></p>
+  <p><a href="dist/databrowser.html?uri=https%3A%2F%2Ftestingsolidos.solidcommunity.net%2Fprofile%2Fcard%23me">Open the data browser</a> · <a href="mashlib/databrowser.html?uri=https%3A%2F%2Ftestingsolidos.solidcommunity.net%2Fprofile%2Fcard%23me">from the source files</a> · <a href="gallery.html">component gallery</a></p>
 </body>
 </html>
