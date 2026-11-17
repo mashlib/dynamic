@@ -17,6 +17,16 @@
 
       panes.runDataBrowser(uri ?? undefined)
 
+      // The profile heading (name and photo above a profile, from solid-panes 5.1.0) is drawn
+      // for the page's own address. With ?uri= the thing on show is another address, so once
+      // the first view is up, point the heading at it.
+      if (uri) {
+        document.addEventListener('solid-panes:navigated', () => {
+          panes.initializeProfileHeading(() => uri)
+          panes.refreshProfileHeading(true).catch(error => console.error('Failed to show the profile heading.', error))
+        }, { once: true })
+      }
+
       var header = document.getElementById('mainSolidUiHeader')
 
       if (header) {

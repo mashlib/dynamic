@@ -65,6 +65,8 @@ try {
 
       await page.screenshot(`${SHOTS}shell-${name}.png`)
       check(`${name}: renders${expect ? ` "${expect}"` : ''}`, expect ? text.includes(expect) : true, pane || undefined)
+      // From profile-pane 4.1.0 the name and photo are the page's profile heading, not the pane's.
+      if (name === 'profile') check('profile: the profile heading is shown above the pane', await page.evaluate(() => { const h = document.querySelector('#profile-heading-mount solid-panes-profile-heading'); return !!h && h.getBoundingClientRect().height > 20 }))
       check(`${name}: no uncaught errors`, errors.length === 0, errors.slice(0, 2).join(' | ').slice(0, 300))
     } catch (error) {
       check(`${name}: ${error.message}`, false)
