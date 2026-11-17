@@ -1,0 +1,1 @@
+var n=new Map;function h(c){let t=String(c);return n.has(t)||n.set(t,fetch(t).then(async e=>{if(!e.ok)throw new Error(`loadSheet: ${e.status} ${t}`);let a=new CSSStyleSheet;return a.replaceSync(await e.text()),a})),n.get(t)}export{h as a};

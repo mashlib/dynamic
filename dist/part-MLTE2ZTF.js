@@ -1,0 +1,1 @@
+import{a as t}from"./part-AHAYGN5G.js";import{b as r}from"./part-5ZTE77ED.js";import{html as o,nothing as i}from"lit";var e=class extends r{static properties={value:{type:String,reflect:!0}};constructor(){super(),this.value=""}render(){return o`${i}`}};t("solid-ui-combobox-option",e);export{e as a};

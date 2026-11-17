@@ -27,7 +27,7 @@ const published = (new URL(location.href).searchParams.get('published') ?? store
 if (published.length) console.info(`importmap: published builds for ${published.join(', ')}`)
 
 script.type = 'importmap'
-script.textContent = JSON.stringify({
+const map = {
   imports: {
     // This tree by package path, for anything built on it (e.g. mashlib-lws):
     // import 'solidos-nobuild/src/lib/write-fallback.js'
@@ -139,6 +139,15 @@ script.textContent = JSON.stringify({
     'w3c-keyname': 'https://esm.sh/*w3c-keyname@2.2.8',
     'w3c-keyname/': 'https://esm.sh/*w3c-keyname@2.2.8/',
   },
-})
+}
+
+// A built copy of this tree (dist/, made by tools/build.mjs) names its own file for each
+// package that lives here, so that a pane importing 'solid-ui' gets the one already loaded
+// rather than a second copy from the source files. dist/manifest.js sets this.
+const dist = window.MASHLIB_DIST
+
+if (dist) for (const [specifier, file] of Object.entries(dist.entries)) map.imports[specifier] = dist.base + file
+
+script.textContent = JSON.stringify(map)
 
 document.currentScript.after(script)

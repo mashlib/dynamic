@@ -4,3 +4,4 @@
 tools/.icon-cache/
 tools/.old-*.json
 tools/.hand-*.json
+node_modules/

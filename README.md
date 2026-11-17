@@ -25,6 +25,34 @@ Licence: AGPL-3.0-or-later for this repository (LICENSE). The files converted fr
 
 This tree began as [solidos-nobuild](https://github.com/JavaScriptSolidServer/solidos-nobuild) and carries its history.
 
+## The joined copy (`dist/`)
+
+The source needs no build: edit a file, reload. For delivery, the same files are joined so a page asks for tens of files rather than hundreds:
+
+```sh
+npm install        # once: esbuild, the only dependency
+npm run build      # -> dist/
+```
+
+A server points at the joined copy the same way:
+
+```sh
+jss start --mashlib-module https://mashlib.github.io/dynamic/dist/boot.js --panes https://example.org/my-pane.js
+```
+
+`dist/databrowser.html?uri=…` is the stand-alone page. What the build does, all of it: joins the modules, keeping every `import()` as its own file fetched on first use; minifies; carries the stylesheets and Turtle files inside the joined files; leaves the libraries on the CDNs, resolved by the same import map. `dist/` sits beside the source tree and still takes images, and `src/importmap.js`, from it.
+
+On one JSON-LD document served by JSS with four external panes (17 Nov 2026):
+
+| | Requests for this tree | All requests | First pane drawn |
+|---|---|---|---|
+| source tree | 325 | 438 | about 0.8 s |
+| `dist/` | 51 | 164 | about 0.3 s |
+
+To start the data browser `dist/` sends 828 KB of script (245 KB gzipped); upstream's bundle is 4,331 KB (1,170 KB gzipped). The 94 requests that remain for libraries (rdflib, solid-logic, lit, Web Awesome) are not joined.
+
+Checked against the joined copy: `SHELL_URL=http://localhost:8731/dist/databrowser.html node tests/shell.mjs`, and `tests/pod.mjs` on a pod started with `dist/boot.js`.
+
 ## Loaded on first use
 
 Upstream's bundle holds everything, so nothing there is "later". Here every file is a request, so what a page does not need is not fetched until it does. `label()`, which decides whether a pane is offered, is never deferred, so the same panes are offered for the same things.

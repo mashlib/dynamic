@@ -1,0 +1,1 @@
+var i="solid-ui-file-explorer-back",l="solid-ui-file-explorer-manage-access",r="solid-ui-file-explorer-open-pane";function p(o,E){return o.composedPath().find(e=>"localName"in e&&e.localName==="solid-ui-file-explorer-provider")===E}export{i as a,l as b,r as c,p as d};
