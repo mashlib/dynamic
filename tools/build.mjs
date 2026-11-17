@@ -226,7 +226,7 @@ const result = await build({
 })
 
 // The page's side: which file is which package, the entry point for --mashlib-module, and
-// the stand-alone page.
+// the stand-alone pages.
 writeFileSync(resolve(out, 'manifest.js'), `// Made by tools/build.mjs. A classic script, before ../src/importmap.js.
 window.MASHLIB_DIST = { base: new URL('./', document.currentScript.src).href, entries: ${JSON.stringify(entries)} }
 `)
@@ -244,16 +244,18 @@ for (const [from, to] of bootSteps) {
 writeFileSync(resolve(out, 'boot.js'), '// Made by tools/build.mjs from mashlib/boot.js: the joined copy of the data browser.\n' + boot)
 copyFileSync(resolve(root, 'mashlib/boot.css'), resolve(out, 'boot.css'))
 
-let page = readFileSync(resolve(root, 'mashlib/databrowser.html'), 'utf8')
 const pageSteps = [
   ['<script src="../src/importmap.js"></script>', '<script src="manifest.js"></script>\n    <script src="../src/importmap.js"></script>'],
   ["await import('./src/index.js')", "await import('./mashlib.js')"]
 ]
-for (const [from, to] of pageSteps) {
-  if (!page.includes(from)) throw new Error('mashlib/databrowser.html has changed: ' + from.slice(0, 50))
-  page = page.replace(from, to)
+for (const name of ['databrowser.html', 'browse.html']) {
+  let page = readFileSync(resolve(root, 'mashlib', name), 'utf8')
+  for (const [from, to] of pageSteps) {
+    if (!page.includes(from)) throw new Error(`mashlib/${name} has changed: ` + from.slice(0, 50))
+    page = page.replace(from, to)
+  }
+  writeFileSync(resolve(out, name), page)
 }
-writeFileSync(resolve(out, 'databrowser.html'), page)
 
 // Report: what a page fetches to start, and what waits.
 const outputs = result.metafile.outputs

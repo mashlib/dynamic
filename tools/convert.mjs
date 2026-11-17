@@ -501,6 +501,8 @@ function splitTopLevel (s) {
 const report = { strip: 0, transform: 0, js: 0 }
 const referencedAssets = new Set()
 const usedIcons = new Set()
+const classIcons = new Set() // icons imported as a class: import X from '~icons/<set>/<name>'
+const iconExport = (set, icon) => (set + '-' + icon).replace(/-([a-z0-9])/g, (m, c) => c.toUpperCase())
 
 for (const file of files) {
   let code = readFileSync(join(from, file), 'utf8')
@@ -552,6 +554,15 @@ for (const file of files) {
     return '\u0004ICONS\u0004\n'
   })
 
+  // import X from '~icons/<set>/<name>' → the element class itself, for code that registers
+  // it under a tag name of its own. A named export of icons.js, a class of its own per icon
+  // (a class can be registered once).
+  code = code.replace(/^import\s+([A-Za-z_$][\w$]*)\s+from\s*(['"])~icons\/([\w-]+)\/([\w-]+)\2;?[ \t]*\n/gm, (m, name, q, set, icon) => {
+    usedIcons.add(`${set}/${icon}`)
+    classIcons.add(`${set}/${icon}`)
+    return `import { ${iconExport(set, icon)} as ${name} } from '\u0004ICONFILE\u0004'\n`
+  })
+
   // import x from './x.png' → its URL (Vite's asset import). The file is
   // copied alongside, even from outside `from` (e.g. ../icons-png).
   code = code.replace(/^import\s+([\w$]+)\s+from\s*(['"])(\.[^'"]+\.(?:png|svg|jpe?g|gif|webp|ico))\2;?[ \t]*$/gm,
@@ -600,6 +611,7 @@ for (const file of files) {
 
   if (needsLoadSheet) code = `import { loadSheet } from '${helper('loadSheet.js')}'\n` + code
   code = code.replace('\u0004ICONS\u0004', `import '${helper('icons.js')}'`)
+  code = code.replaceAll('\u0004ICONFILE\u0004', helper('icons.js'))
 
   // (after the specifier rewrite: importCss.js only exists in the output)
   if (needsImportCss) {
@@ -750,20 +762,21 @@ if (usedIcons.size) {
     const svg = text.trim().replace(/ width="1em" height="1em"/, ' width="100%" height="100%"')
 
     defs.push(`defineIcon('icon-${set}-${icon}', '${svg.replace(/'/g, "\\'")}')`)
+    if (classIcons.has(id)) defs.push(`export const ${iconExport(set, icon)} = iconClass('${svg.replace(/'/g, "\\'")}')`)
   }
 
   writeFileSync(join(to, 'icons.js'), `// The ~icons/<set>/<name> imports of this package (unplugin-icons upstream),
 // fetched from Iconify by tools/convert.mjs. Lucide: ISC; svg-spinners: MIT.
 
-function defineIcon (tagName, svg) {
-  if (customElements.get(tagName)) return
+const iconClass = (svg) => class extends HTMLElement {
+  constructor () {
+    super()
+    this.attachShadow({ mode: 'open' }).innerHTML = '<style>:host { display: inline-flex; }</style>' + svg
+  }
+}
 
-  customElements.define(tagName, class extends HTMLElement {
-    constructor () {
-      super()
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>:host { display: inline-flex; }</style>' + svg
-    }
-  })
+function defineIcon (tagName, svg) {
+  if (!customElements.get(tagName)) customElements.define(tagName, iconClass(svg))
 }
 
 ${defs.join('\n')}

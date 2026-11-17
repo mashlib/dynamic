@@ -18,7 +18,7 @@ deviations are listed in README.md.
 | [solid-ui](https://github.com/SolidOS/solid-ui) | 5.1.0 | f6a8ff5 | 2026-11-16 | MIT, Copyright (c) 2019 Solid | `src/` |
 | [mashlib](https://github.com/SolidOS/mashlib) | 3.1.0 | df7aab3 | 2026-11-16 | MIT, Copyright (c) 2016 - present Tim Berners-Lee and contributors | `mashlib/` |
 | [solid-panes](https://github.com/SolidOS/solid-panes) | 5.1.0 | 617cc9d | 2026-11-16 | MIT, Copyright (c) 2016 - present | `panes/solid-panes/` |
-| [profile-pane](https://github.com/SolidOS/profile-pane) | 4.1.0 | a16bfb4 | 2026-09-29 | MIT (package.json; the repo ships no LICENSE file) | `panes/profile-pane/` |
+| [profile-pane](https://github.com/SolidOS/profile-pane) | 4.1.0 | 8ca1f6c | 2026-11-16 | MIT (package.json; the repo ships no LICENSE file) | `panes/profile-pane/` |
 | [folder-pane](https://github.com/SolidOS/folder-pane) | 4.1.0 | 0be30ae | 2026-11-16 | MIT | `panes/folder-pane/` |
 | [source-pane](https://github.com/SolidOS/source-pane) | 4.1.0 | 12d312f | 2026-11-16 | MIT | `panes/source-pane/` |
 | [chat-pane](https://github.com/SolidOS/chat-pane) | 4.0.0 | 8f66888 | 2026-09-29 | MIT | `panes/chat-pane/` |

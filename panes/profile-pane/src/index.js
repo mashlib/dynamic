@@ -7,10 +7,11 @@ const loadView = () => Promise.all([import('./ProfileView.js'), import('./sectio
 import { icons, ns } from 'solid-ui'
 import { createResizeDrivenSync } from './utils/resize.js'
 // (type-only import removed: Layout from './types.js')
-// Not re-exported here (upstream re-exports addMeToYourFriendsDiv, createAddMeToYourFriendsButton,
-// saveNewThing, checkIfThingExists): a static re-export would pull the whole pane in at
-// start-up. Import them from './specialButtons/addMeToYourFriends.js'.
+import { presentProfile } from './selectors.js'
+export { presentProfile } from './selectors.js'
+export { getViewerMode } from './viewerMode.js'
 
+const PROFILE_HEADING_SAVED_EVENT = 'profile-heading-saved'
 const MOBILE_LAYOUT_MAX_WIDTH = 768
 const HEADING_SECTION_SELECTOR = '[data-profile-section="heading"]'
 const SOCIAL_SECTION_SELECTOR = '[data-profile-section="social"]'
@@ -125,11 +126,28 @@ const Pane = {
     applyEnvironmentAttributes(target, context)
     target.dataset.layout = currentLayout
 
+    let disposed = false
+
     const renderWithData = async () => {
+      if (disposed) return
       const [{ ProfileView }, { hydrateQRCodes }] = await loadView()
+      if (disposed) return
       applyEnvironmentAttributes(target, context)
       target.dataset.layout = currentLayout
-      render(await ProfileView(subject, context, currentLayout, renderWithData), target)
+      const view = await ProfileView(subject, context, currentLayout, async () => {
+        if (disposed) return
+        target.dispatchEvent(new CustomEvent('profile-pane-saved', {
+          bubbles: true,
+          composed: true,
+          detail: {
+            subjectUri: subject.value,
+            profileData: presentProfile(subject, store)
+          }
+        }))
+        await renderWithData()
+      })
+      if (disposed) return
+      render(view, target)
       cleanupSocialSectionHeightSync?.()
       cleanupSocialSectionHeightSync = syncSocialSectionHeight(target)
       cleanupLayoutSync?.()
@@ -139,6 +157,43 @@ const Pane = {
       })
       await hydrateQRCodes(target)
     }
+
+    // Hosts may edit this profile elsewhere (e.g. a standalone heading); rerender so
+    // sections such as More contacts reflect the updated store.
+    let wasConnected = target.isConnected
+    const dispose = () => {
+      if (disposed) return
+      disposed = true
+      context.dom.removeEventListener(PROFILE_HEADING_SAVED_EVENT, handleHeadingSaved)
+      connectionObserver.disconnect()
+      cleanupSocialSectionHeightSync?.()
+      cleanupLayoutSync?.()
+    }
+    const connectionObserver = new MutationObserver((records) => {
+      // Added-node records also cover mounting and removal within one mutation batch.
+      wasConnected ||= target.isConnected || records.some(record =>
+        Array.from(record.addedNodes).some(node => node === target || node.contains(target))
+      )
+      if (wasConnected && !target.isConnected) dispose()
+    })
+    connectionObserver.observe(context.dom, { childList: true, subtree: true })
+    const handleHeadingSaved = (event) => {
+      if (target.isConnected) {
+        wasConnected = true
+      } else if (wasConnected) {
+        dispose()
+        return
+      } else {
+        return
+      }
+
+      const detail = (event).detail
+      if (detail?.subjectUri !== subject.value) return
+      renderWithData().catch((error) => {
+        console.error('Failed to refresh the profile after a heading update.', error)
+      })
+    }
+    context.dom.addEventListener(PROFILE_HEADING_SAVED_EVENT, handleHeadingSaved)
 
     loadExtendedProfile(store, subject).then(async () => {
       await renderWithData()

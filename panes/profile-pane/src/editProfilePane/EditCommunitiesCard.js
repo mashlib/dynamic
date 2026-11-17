@@ -9,7 +9,7 @@ importCss(new URL('../styles/editProfile.css', import.meta.url))
 import {
   clearPreviousMessage, complain
 } from '../buttonsHelper.js'
-import { saveNewThing } from '../specialButtons/addMeToYourFriends.js'
+import { saveNewThing } from './helpers.js'
 import { isAWebID, refresh } from './editProfilePresenter.js'
 
 const GREEN_PLUS = icons.iconBase + 'noun_34653_green.svg'

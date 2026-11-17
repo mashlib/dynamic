@@ -3,7 +3,7 @@
 import { NamedNode, Node, LiveStore } from 'rdflib'
 import { utils, ns, widgets } from 'solid-ui'
 
-import { presentCV } from '../resume/selectors.js'
+import { presentCV } from './sections/resume/selectors.js'
 
 function termValue(term) {
   if (!term) return ''

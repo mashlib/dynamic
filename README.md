@@ -40,7 +40,7 @@ A server points at the joined copy the same way:
 jss start --mashlib-module https://mashlib.github.io/dynamic/dist/boot.js --panes https://example.org/my-pane.js
 ```
 
-`dist/databrowser.html?uri=…` is the stand-alone page. What the build does, all of it: joins the modules, and the libraries they use (rdflib, solid-logic, lit, Web Awesome, CodeMirror, from `node_modules`), keeping every `import()` as its own file fetched on first use; minifies; carries the stylesheets and Turtle files inside the joined files; folds a stylesheet's `@import`s into it. `dist/` sits beside the source tree and still takes images, fonts and `src/importmap.js` from it.
+`dist/databrowser.html?uri=…` is the stand-alone page, and `dist/browse.html` the same with an address bar: type or paste the address of a pod, a folder or a profile (upstream's `browse.html`, with the address bar in the header beside the account buttons). From the source files they are `mashlib/databrowser.html` and `mashlib/browse.html`. What the build does, all of it: joins the modules, and the libraries they use (rdflib, solid-logic, lit, Web Awesome, CodeMirror, from `node_modules`), keeping every `import()` as its own file fetched on first use; minifies; carries the stylesheets and Turtle files inside the joined files; folds a stylesheet's `@import`s into it. `dist/` sits beside the source tree and still takes images, fonts and `src/importmap.js` from it.
 
 One library stays on the CDN: the login client (`@uvdsl/solid-oidc-client-browser`), which starts a worker from a file beside itself. A pane added with `--panes` that imports `solid-ui`, `solid-panes`, `rdflib`, `solid-logic`, `lit` or `lit-html` by name gets the copy already loaded (`dist/manifest.js` tells the import map which file that is).
 
@@ -61,7 +61,7 @@ Upstream's bundle holds everything, so nothing there is "later". Here every file
 
 | What | Fetched when | Deviation from upstream |
 |---|---|---|
-| profile-pane's view and QR code card (about 70 modules) | a profile is first drawn | `index.js` no longer re-exports the "add me to your friends" helpers; import them from `specialButtons/addMeToYourFriends.js` |
+| profile-pane's view and QR code card | a profile is first drawn | none |
 | contacts-pane's address book, individual view and minting | first used | `contactsPane.js` no longer re-exports the `contactLogic` and `webidControl` helpers |
 | folder-pane's view and provider | a folder is first drawn | none |
 | the profile heading's edit dialog (about 30 modules) | Edit is first pressed | none |

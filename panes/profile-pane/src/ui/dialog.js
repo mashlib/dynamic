@@ -10,10 +10,7 @@ import { formatDisplayError } from '../utils/errorDisplay.js'
 /* Changed modal from div to dialog element */
 let modalDialog = null
 
-let scrollLockCount = 0
-let previousHtmlOverflow = ''
-let previousBodyOverflow = ''
-let removeDocumentScrollGuard = null
+const scrollLockState = new WeakMap()
 
 function getEventTargetElement(target) {
   if (target instanceof HTMLElement) return target
@@ -49,8 +46,23 @@ function isDialogScrollRegionTarget(event) {
   return Boolean(targetElement.closest('#modal-desc'))
 }
 
+function getDocumentScrollLockState(dom) {
+  let state = scrollLockState.get(dom)
+  if (!state) {
+    state = {
+      count: 0,
+      previousHtmlOverflow: dom.documentElement.style.overflow,
+      previousBodyOverflow: dom.body.style.overflow,
+      removeScrollGuard: null
+    }
+    scrollLockState.set(dom, state)
+  }
+  return state
+}
+
 function installDocumentScrollGuard(dom) {
-  if (removeDocumentScrollGuard) return
+  const state = getDocumentScrollLockState(dom)
+  if (state.removeScrollGuard) return
 
   const preventBackgroundScroll = (event) => {
     if (!isDialogScrollRegionTarget(event)) {
@@ -60,35 +72,39 @@ function installDocumentScrollGuard(dom) {
 
   dom.addEventListener('wheel', preventBackgroundScroll, { capture: true, passive: false })
   dom.addEventListener('touchmove', preventBackgroundScroll, { capture: true, passive: false })
-  removeDocumentScrollGuard = () => {
+  state.removeScrollGuard = () => {
     dom.removeEventListener('wheel', preventBackgroundScroll, true)
     dom.removeEventListener('touchmove', preventBackgroundScroll, true)
-    removeDocumentScrollGuard = null
+    state.removeScrollGuard = null
   }
 }
 
 function lockDocumentScroll(dom) {
-  if (scrollLockCount === 0) {
-    previousHtmlOverflow = dom.documentElement.style.overflow
-    previousBodyOverflow = dom.body.style.overflow
+  const state = getDocumentScrollLockState(dom)
+
+  if (state.count === 0) {
+    state.previousHtmlOverflow = dom.documentElement.style.overflow
+    state.previousBodyOverflow = dom.body.style.overflow
 
     dom.documentElement.style.overflow = 'hidden'
     dom.body.style.overflow = 'hidden'
     installDocumentScrollGuard(dom)
   }
 
-  scrollLockCount += 1
+  state.count += 1
 }
 
 function unlockDocumentScroll(dom) {
-  if (scrollLockCount === 0) return
+  const state = getDocumentScrollLockState(dom)
+  if (state.count === 0) return
 
-  scrollLockCount -= 1
-  if (scrollLockCount > 0) return
+  state.count -= 1
+  if (state.count > 0) return
 
-  dom.documentElement.style.overflow = previousHtmlOverflow
-  dom.body.style.overflow = previousBodyOverflow
-  removeDocumentScrollGuard?.()
+  dom.documentElement.style.overflow = state.previousHtmlOverflow
+  dom.body.style.overflow = state.previousBodyOverflow
+  state.removeScrollGuard?.()
+  state.removeScrollGuard = null
 }
 
 function getDialogMountTarget(dom) {
@@ -175,16 +191,27 @@ function getDialogElements (dialog) {
   }
 }
 
+function syncDialogErrorDescription(elements) {
+  const defaultDescription = 'modal-desc'
+  const describedBy = elements.error.hidden || !elements.error.textContent?.trim()
+    ? defaultDescription
+    : `${defaultDescription} modal-error`
+
+  elements.dialog.setAttribute('aria-describedby', describedBy)
+}
+
 function clearModalError(elements) {
   elements.error.textContent = ''
   elements.error.setAttribute('aria-hidden', 'true')
   elements.error.hidden = true
+  syncDialogErrorDescription(elements)
 }
 
 function setModalError(elements, error, fallbackMessage) {
   elements.error.textContent = formatDisplayError(error, fallbackMessage)
   elements.error.setAttribute('aria-hidden', 'false')
   elements.error.hidden = false
+  syncDialogErrorDescription(elements)
 }
 
 function openDialogElement (dialog) {
@@ -384,6 +411,8 @@ function openModal ({
 
 function closeModal (_result) {
   if (modalDialog) {
+    const elements = getDialogElements(modalDialog)
+    clearModalError(elements)
     closeDialogElement(modalDialog)
     modalDialog.oncancel = null
     const headerActionButton = modalDialog.querySelector('#modal-header-action button')
@@ -456,13 +485,49 @@ export function openInputDialog (options) {
   const cancelLabel = options.cancelLabel || 'Cancel'
   const dialog = ensureModalDialog(options.dom)
   const elements = getDialogElements(dialog)
-  const submitProxy = options.dom.createElement('button')
-  submitProxy.type = 'submit'
-  submitProxy.hidden = true
-  submitProxy.style.display = 'none'
-  submitProxy.setAttribute('aria-hidden', 'true')
-  submitProxy.tabIndex = -1
-  options.form.appendChild(submitProxy)
+  const existingSubmitControl = options.form.querySelector('button[type="submit"], input[type="submit"]')
+  const submitControl = (existingSubmitControl ?? options.form.ownerDocument.createElement('button'))
+  let shouldTreatCloseAsNoOp = false
+
+  if (!existingSubmitControl) {
+    submitControl.type = 'submit'
+    submitControl.hidden = true
+    submitControl.tabIndex = -1
+    submitControl.setAttribute('aria-hidden', 'true')
+    options.form.appendChild(submitControl)
+  }
+
+  const deriveDefaultFieldLabel = (value) => value
+    .replace(/^\s*edit\s+/i, '')
+    .replace(/^\s*add\s+/i, '')
+    .replace(/^\s*create\s+/i, '')
+    .trim()
+
+  const ensureFormControlsHaveAccessibleNames = () => {
+    const titleLabel = deriveDefaultFieldLabel(options.title)
+    if (!titleLabel) return
+
+    const controls = Array.from(options.form.querySelectorAll([
+      'input:not([type="hidden"])',
+      'textarea',
+      'select'
+    ].join(',')))
+
+    if (controls.length !== 1) return
+
+    const [control] = controls
+    const hasExplicitLabel = control.hasAttribute('aria-label') || control.hasAttribute('aria-labelledby')
+    const hasNativeLabel = Boolean(control.closest('label'))
+    if (hasExplicitLabel || hasNativeLabel || control.getAttribute('type') === 'hidden') {
+      return
+    }
+
+    if (!control.getAttribute('aria-label')) {
+      control.setAttribute('aria-label', titleLabel)
+    }
+  }
+
+  ensureFormControlsHaveAccessibleNames()
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -486,6 +551,7 @@ export function openInputDialog (options) {
           clearModalError(elements)
 
           if (options.shouldCloseWithoutSave && await options.shouldCloseWithoutSave()) {
+            shouldTreatCloseAsNoOp = true
             return true
           }
 
@@ -529,12 +595,15 @@ export function openInputDialog (options) {
   return dialogPromise
     .then((result) => {
       if (result !== 'save') return null
+      if (shouldTreatCloseAsNoOp) return null
       return collectFormValues(options.form)
     })
     .finally(() => {
       elements.buttons.hidden = false
       updateSavingUI(dialog, submitLabel, false)
       options.form.removeEventListener('submit', handleSubmit)
-      submitProxy.remove()
+      if (!existingSubmitControl && submitControl.isConnected) {
+        submitControl.remove()
+      }
     })
 }

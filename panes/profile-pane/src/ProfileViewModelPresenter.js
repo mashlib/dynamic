@@ -13,13 +13,10 @@ import { presentContactInfo } from './sections/contactInfo/selectors.js'
 import { presentEducation } from './sections/education/selectors.js'
 // (type-only import removed: ProjectDetails from './sections/projects/types.js')
 import { presentProjects } from './sections/projects/selectors.js'
-import { presentProfile } from './sections/heading/selectors.js'
-// (type-only import removed: ProfileDetails from './sections/heading/types.js')
 // (type-only import removed: BioDetails from './sections/bio/types.js')
 import { presentBio } from './sections/bio/selectors.js'
 
 export async function presentProfileViewModel(subject, store) {
-  const profileDetails = presentProfile(subject, store)
   const contactInfo = presentContactInfo(subject, store)
   const skills = presentSkillDetails(subject, store)
   const languages = presentLanguages(subject, store)
@@ -30,7 +27,6 @@ export async function presentProfileViewModel(subject, store) {
   const cvDetails = presentCV(subject, store)
 
   return {
-    profileDetails,
     social,
     contactInfo,
     skills,

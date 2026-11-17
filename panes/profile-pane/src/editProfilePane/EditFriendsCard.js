@@ -4,7 +4,7 @@ import { importCss } from '../importCss.js'
 import { NamedNode } from 'rdflib'
 import { ns, widgets, icons } from 'solid-ui'
 import { friendsHeadingText } from '../texts.js'
-import { saveNewThing } from '../specialButtons/addMeToYourFriends.js'
+import { saveNewThing } from './helpers.js'
 importCss(new URL('../styles/editProfile.css', import.meta.url))
 import { store } from 'solid-logic'
 import {

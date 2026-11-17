@@ -9,8 +9,11 @@ const until = async (fn, ms = 15000) => { const end = Date.now() + ms; while (Da
 const check = (name, ok) => { out.textContent += `${ok ? 'PASS' : 'FAIL'} ${name}\n` }
 const main = document.querySelector('main')
 
-const host = await until(() => main.querySelector('.profile-pane-host [data-profile-section="heading"]'))
-check('profile pane renders the heading section', !!host)
+const host = await until(() => main.querySelector('.profile-pane-host [data-profile-section]'))
+check('profile pane renders its sections', !!host)
+// From profile-pane 4.1.0 the name, photo and role are the page's profile heading
+// (solid-panes' <solid-panes-profile-heading>), no longer a section of the pane.
+check('no heading section of its own (4.1.0)', !main.querySelector('.profile-pane-host [data-profile-section="heading"]'))
 check(`name: "${main.querySelector('h1, h2')?.textContent.trim()}"`, main.textContent.includes('Testing SolidOS Test'))
 check(`layout: ${main.querySelector('.profile-pane-host')?.dataset.layout}`, ['desktop', 'mobile'].includes(main.querySelector('.profile-pane-host')?.dataset.layout))
 check('resume entries render', main.textContent.includes('Mission a Mars') && main.textContent.includes('The Beatles'))
