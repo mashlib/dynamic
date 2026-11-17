@@ -9,9 +9,11 @@
 import { ContextRoot } from '@lit/context'
 import { solidLogicSingleton } from 'solid-logic'
 import { installWriteFallback } from './lib/write-fallback.js'
+import { installReadFallback } from './lib/read-fallback.js'
 
 new ContextRoot().attach(document.documentElement)
 installWriteFallback(solidLogicSingleton.store.fetcher) // see lib/write-fallback.js
+installReadFallback(solidLogicSingleton.store.fetcher) // see lib/read-fallback.js
 
 await import('./components/provider/Provider.js')
 await import('./components/file-explorer-provider/FileExplorerProvider.js') // solid-ui 5.1.0: second, as upstream
