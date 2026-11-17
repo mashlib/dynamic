@@ -15,8 +15,8 @@ const BASE = process.env.BASE ?? 'http://localhost:8731/'
 const here = fileURLToPath(new URL('.', import.meta.url))
 
 const PAGES = [
-  ['components (gallery)', 'index.html?smoke', '#smoke'],
-  ['components (tags)', 'index.html?tags', '#tags'],
+  ['components (gallery)', 'gallery.html?smoke', '#smoke'],
+  ['components (tags)', 'gallery.html?tags', '#tags'],
   ['login', 'login.html?smoke', '#smoke'],
   ['legacy library', 'legacy.html?load', '#smoke'],
   ['legacy modules', 'legacy.html?load', '#load'],

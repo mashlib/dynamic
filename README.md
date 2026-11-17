@@ -1,14 +1,38 @@
-# SolidOS, no build
+# mashlib dynamic
 
-All of [SolidOS](https://github.com/SolidOS) — solid-ui 5.1.0, mashlib 3.1.0, solid-panes 5.1.0 and the panes — as plain ES modules. Edit a file, reload. No Vite, no webpack, no TypeScript compiler, no plugins. Runs from inside a pod: a [JSS](https://github.com/JavaScriptSolidServer/JavaScriptSolidServer) pod serves it as its data browser with `--mashlib-module` (see "Running on a pod").
+[SolidOS](https://github.com/SolidOS) 3.1 — mashlib 3.1.0, solid-panes 5.1.0, solid-ui 5.1.0 and the panes — as plain ES modules. Same data browser, same panes, nothing compiled in: the shell and every pane are files loaded from URLs. Edit a file, reload. No Vite, no webpack, no TypeScript compiler, no plugins.
 
-Live from this branch: https://jss.live/solidos-nobuild/ (the component gallery; `mashlib/databrowser.html?uri=…` is the full data browser on any public resource). Licence: MIT, see LICENSE and NOTICE.md.
+Live: https://mashlib.github.io/dynamic/ (the data browser; add `?uri=<any public Solid resource>`). The component gallery is `gallery.html`.
+
+## Point a server at it
+
+A [JSS](https://jss.live) pod serves it as its own data browser with one flag, and loads extra panes with another (JSS 0.0.230 or later):
+
+```sh
+jss start --mashlib-module https://mashlib.github.io/dynamic/mashlib/boot.js \
+          --panes https://example.org/my-pane.js
+```
+
+For an address that changes only when you change it, use jsdelivr at a commit or tag of this repository:
+
+```sh
+jss start --mashlib-module https://cdn.jsdelivr.net/gh/mashlib/dynamic@<commit or tag>/mashlib/boot.js
+```
+
+A pane is one ES module whose default export has `name`, `label` and `render`; see the [dynamic panes guide](https://jss.live/docs/guides/dynamic-panes/).
+
+Licence: AGPL-3.0-or-later for this repository (LICENSE). The files converted from SolidOS remain under their authors' MIT licence (LICENSE-MIT, NOTICE.md).
+
+This tree began as [solidos-nobuild](https://github.com/JavaScriptSolidServer/solidos-nobuild) and carries its history.
+
+## Run it locally
 
 ```sh
 python3 -m http.server 8731   # any static server
 ```
 
-- `index.html` — gallery of every component (mock auth). `?smoke` runs 23 click-through checks, `?tags` checks all 27 tags register.
+- `index.html` — opens the data browser (`?uri=` passed on).
+- `gallery.html` — gallery of every component (mock auth). `?smoke` runs 23 click-through checks, `?tags` checks all 27 tags register.
 - `login.html` — real Solid login through `solid-ui-provider` → SolidAuth → solid-logic. `?smoke` runs 10 checks.
 - `mashlib/databrowser.html` — **SolidOS itself**: mashlib's shell, solid-panes and every registered pane. On a pod, the page's own URL is the subject, as upstream; locally, `?uri=` picks one (e.g. a WebID, a folder, a Turtle file).
 - `pane.html?pane=profile-pane` — a pane sandbox (same context and flow as solidos-toolkit's): loads `panes/<pane>/src/index.js` and renders it for `?subject=`. `&smoke` runs the pane's checks (`demo/<name>-smoke.js`).

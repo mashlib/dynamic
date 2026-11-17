@@ -1,5 +1,13 @@
 # Notices
 
+mashlib dynamic is Copyright (C) 2026 Melvin Carvalho and contributors, licensed under the
+GNU Affero General Public License, version 3 or (at your option) any later version
+(LICENSE). That covers the repository as a whole and the work done here: the conversion
+tools, tests, shell entry points and changes.
+
+The files converted from SolidOS keep the licence their authors gave them, MIT
+(LICENSE-MIT, and the table below).
+
 Everything under `src/`, `panes/` and `mashlib/` is converted from the SolidOS
 packages below (`tools/convert.mjs`, `tools/<package>.json`), MIT-licensed by
 their authors. The converted files keep upstream's comments and structure; the
