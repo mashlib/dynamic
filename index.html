@@ -9,7 +9,9 @@
          Solid pod and look at it. Upstream's static/browse.html, with the address bar in
          the header beside the account buttons instead of a grey strip above them.
          ?uri=<address> opens one straight away, and is kept in step as you move around,
-         so the page's own address can be bookmarked or sent to someone. -->
+         so the page's own address can be bookmarked or sent to someone.
+         ?pane=<address of a pane module> adds a pane (may be repeated). A pane is code, so
+         one from a site this browser has not allowed before is asked about first. -->
     <script src="dist/manifest.js"></script>
     <script src="src/importmap.js"></script>
     <style>
@@ -71,6 +73,23 @@
         box-shadow: 0 0 0 1px #e2e8f0;
       }
       .browse-examples a:hover, .browse-examples a:focus-visible { background: #7c4dff; color: #fff; outline: none }
+
+      .browse-ask[hidden] { display: none }
+      .browse-ask {
+        max-width: 760px; margin: 20px auto 0; padding: 18px 20px;
+        background: #fff; border-radius: 14px; box-shadow: 0 0 0 1px #e2e8f0, 0 8px 24px rgba(15, 23, 43, .08);
+        border-left: 5px solid #7c4dff;
+        font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; color: #314158; font-size: 15px; line-height: 1.5;
+      }
+      .browse-ask h2 { margin: 0 0 6px; font-size: 18px; font-weight: 700; color: #0f172b }
+      .browse-ask p { margin: 0 0 10px }
+      .browse-ask code { display: block; white-space: pre-wrap; margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: #f1f5f9; color: #0f172b; font-size: 13px; overflow-wrap: anywhere }
+      .browse-ask div { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px }
+      .browse-ask button { height: 36px; padding: 0 18px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600 }
+      .browse-ask .yes { border: 0; background: #7c4dff; color: #fff }
+      .browse-ask .yes:hover, .browse-ask .yes:focus-visible { background: #6a3bf0; outline: none }
+      .browse-ask .no { border: 1px solid #cad5e2; background: #fff; color: #314158 }
+      .browse-ask .no:hover, .browse-ask .no:focus-visible { background: #f1f5f9; outline: none }
 
       @media (max-width: 720px) {
         :root { --browse-bar-height: 104px }
@@ -166,6 +185,63 @@
       measure()
       new ResizeObserver(measure).observe(bar)
 
+      // ?pane=<address>: panes named by the link. A pane is code that runs as the person looking,
+      // so a link cannot add one silently. One from this page's own site, or from a site allowed
+      // here before, is loaded before the first view; any other is asked about, and the
+      // resource is shown meanwhile without it.
+      const ALLOWED = 'mashlib.panes.allowed' // sites whose panes this browser has allowed
+      const allowed = () => { try { return JSON.parse(localStorage.getItem(ALLOWED)) || [] } catch { return [] } }
+      const allow = (origin) => { try { localStorage.setItem(ALLOWED, JSON.stringify([...new Set([...allowed(), origin])])) } catch { /* private window: this visit only */ } }
+
+      const named = [...new Set(new URLSearchParams(location.search).getAll('pane'))].slice(0, 10).map((address) => {
+        try {
+          const url = new URL(address)
+          return /^https?:$/.test(url.protocol) && !url.username && !url.password ? url : null
+        } catch { return null }
+      }).filter(Boolean)
+
+      async function addPane (url) {
+        try {
+          const module = await import(url.href)
+          const pane = module.default
+          if (!pane || typeof pane.label !== 'function' || typeof pane.render !== 'function' || !pane.name) throw new Error('its default export is not a pane (name, label, render)')
+          if (!panes.byName(pane.name)) panes.register(pane)
+          console.info('[browse] pane "' + pane.name + '" added from ' + url.href)
+          return true
+        } catch (error) {
+          console.warn('[browse] pane not added: ' + url.href + ': ' + (error && error.message ? error.message : error))
+          return false
+        }
+      }
+
+      // Ask about one site at a time; the answer covers every pane the link names from it.
+      function ask (origin, urls) {
+        return new Promise((resolve) => {
+          const box = dom.getElementById('browseAsk')
+          dom.getElementById('browseAskSite').textContent = new URL(origin).host
+          dom.getElementById('browseAskFiles').textContent = urls.map(u => u.href).join('\n')
+          box.hidden = false
+          const answer = (yes) => { box.hidden = true; yesButton.onclick = noButton.onclick = null; resolve(yes) }
+          const yesButton = dom.getElementById('browseAskYes'); const noButton = dom.getElementById('browseAskNo')
+          yesButton.onclick = () => answer(true)
+          noButton.onclick = () => answer(false)
+        })
+      }
+
+      const trusted = named.filter(url => url.origin === location.origin || allowed().includes(url.origin))
+      const unknown = named.filter(url => !trusted.includes(url))
+      // Allowed panes: in before the first view, but never hold the page up for long.
+      await Promise.race([Promise.all(trusted.map(addPane)), new Promise(resolve => setTimeout(resolve, 5000))])
+      ;(async () => {
+        for (const origin of [...new Set(unknown.map(url => url.origin))]) {
+          const urls = unknown.filter(url => url.origin === origin)
+          if (!await ask(origin, urls)) continue
+          allow(origin)
+          const added = await Promise.all(urls.map(addPane))
+          if (added.some(Boolean) && here()) go(here(), true) // show the same thing again, with the new pane
+        }
+      })()
+
       // Back and forward: show what the page's address now says. (mashlib's own handler would
       // show the page itself.)
       window.onpopstate = null
@@ -202,6 +278,15 @@
       </header>
 
       <main id="MainContent" tabindex="-1" aria-live="polite" class="app-view browse-main">
+        <section class="browse-ask" id="browseAsk" role="alertdialog" aria-labelledby="browseAskTitle" hidden>
+          <h2 id="browseAskTitle">This link adds a pane from <span id="browseAskSite"></span></h2>
+          <p>A pane is a small program that draws what you are looking at. It runs as you: once you are logged in it can read and change whatever you can on your pod. Allow it only if you trust that site.</p>
+          <code id="browseAskFiles"></code>
+          <div>
+            <button class="yes" id="browseAskYes" type="button">Allow panes from this site</button>
+            <button class="no" id="browseAskNo" type="button">Not now</button>
+          </div>
+        </section>
         <section class="browse-welcome" id="browseWelcome" hidden>
           <h1>Browse the Solid web</h1>
           <p>Paste the address of a pod, a folder, a profile or any document on one, and look at it with SolidOS.</p>
