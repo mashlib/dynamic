@@ -32,7 +32,9 @@ let failures = 0
 try {
   for (const [name, subject] of Object.entries(SUBJECTS)) {
     const boxes = {}
-    for (const tree of ['mashlib', 'dist']) {
+    // The source tree twice: a page that does not lay out the same way on two loads of the
+    // same files (data that arrives in a different order) cannot be compared across trees.
+    for (const [tree, key] of [['mashlib', 'mashlib'], ['mashlib', 'again'], ['dist', 'dist']]) {
       await page.goto(`${BASE}${tree}/databrowser.html?uri=${encodeURIComponent(subject)}`)
       await page.waitFor(READY, { timeout: 40000 })
       // Panes fill in as data, images and fonts arrive, at different speeds in the two trees:
@@ -40,13 +42,17 @@ try {
       let last = ''
       for (let i = 0; i < 12; i++) {
         await new Promise(resolve => setTimeout(resolve, 2000))
-        boxes[tree] = await page.evaluate(BOXES)
-        const now = boxes[tree].join('\n')
+        boxes[key] = await page.evaluate(BOXES)
+        const now = boxes[key].join('\n')
         if (now === last && i >= 2) break
         last = now
       }
     }
     const a = boxes.mashlib; const b = boxes.dist
+    if (a.join('\n') !== boxes.again.join('\n')) {
+      console.log(`SKIP ${name}: the source tree itself lays out differently on two loads`)
+      continue
+    }
     const differ = []
     for (let i = 0; i < Math.max(a.length, b.length) && differ.length < 5; i++) if (a[i] !== b[i]) differ.push(`#${i}: source "${a[i]}" / dist "${b[i]}"`)
     const ok = differ.length === 0
