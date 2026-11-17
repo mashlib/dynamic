@@ -59,7 +59,8 @@ if (why) {
   console.log(chain.reverse().join('\n  -> '))
   process.exit(0)
 }
-const group = (f) => { const r = rel(f); const m = r.match(/^(panes\/[a-z-]+|src\/[a-z-]+|mashlib)/); return m ? m[1] : r }
+const deep = args.includes('--deep') // --deep: one level further down, to see inside a package
+const group = (f) => { const r = rel(f); const m = r.match(deep ? /^(panes\/[a-z-]+\/src\/[A-Za-z-]+|src\/[a-z-]+\/[A-Za-z-]+|mashlib)/ : /^(panes\/[a-z-]+|src\/[a-z-]+|mashlib)/); return m ? m[1] : r }
 const by = {}
 for (const [f, n] of files) { const g = group(f); by[g] = by[g] || [0, 0]; by[g][0]++; by[g][1] += n }
 const total = [...files.values()].reduce((a, n) => a + n, 0)

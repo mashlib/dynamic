@@ -25,7 +25,8 @@ import { getPaneIcon, getPaneItems } from './fileExplorerHelpers.js'
 import 'solid-ui/components/file-explorer-provider'
 import 'solid-ui/components/file-explorer-header'
 import 'solid-ui/components/error-state'
-import AccessControlModal from 'solid-ui/components/access-control-modal'
+// Lazy here (upstream: a static import): the sharing dialog is fetched when it is first opened.
+const loadAccessControlModal = () => import('solid-ui/components/access-control-modal').then(m => m.default)
 
 const EXPLORER_PROVIDER_TAG = 'solid-ui-file-explorer-provider'
 
@@ -393,7 +394,8 @@ export default function (context) {
       provider.addEventListener(UI.FILE_EXPLORER_MANAGE_ACCESS_EVENT, event => {
         event.stopPropagation()
         const accessSubject = $rdf.sym(event.detail.subjectUri).doc()
-        solidLogicSingleton.acl.findAccessGrants(accessSubject).then(accessGrants => {
+        solidLogicSingleton.acl.findAccessGrants(accessSubject).then(async accessGrants => {
+          const AccessControlModal = await loadAccessControlModal()
           UI.showDialog(AccessControlModal, {
             props: {
               subjectUri: accessSubject.uri,
@@ -459,6 +461,7 @@ export default function (context) {
       try {
         const accessSubject = subject.doc()
         const accessGrants = await solidLogicSingleton.acl.findAccessGrants(accessSubject)
+        const AccessControlModal = await loadAccessControlModal()
 
         UI.showDialog(AccessControlModal, {
           props: {

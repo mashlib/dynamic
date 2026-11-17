@@ -34,12 +34,15 @@ Upstream's bundle holds everything, so nothing there is "later". Here every file
 | profile-pane's view and QR code card (about 70 modules) | a profile is first drawn | `index.js` no longer re-exports the "add me to your friends" helpers; import them from `specialButtons/addMeToYourFriends.js` |
 | contacts-pane's address book, individual view and minting | first used | `contactsPane.js` no longer re-exports the `contactLogic` and `webidControl` helpers |
 | folder-pane's view and provider | a folder is first drawn | none |
+| the profile heading's edit dialog (about 30 modules) | Edit is first pressed | none |
+| the sharing dialog (`access-control-modal`) | it is first opened | none |
+| marked and DOMPurify | a Markdown file is first drawn | none |
 | CodeMirror (`CodeEditor`) | an editor is first initialised | none: `initialize()` was already async |
 | @noble/curves and @noble/hashes (chat signatures) | a message is first signed or checked | `signMsg`, `verifySignature` and `getMsgHash` are async; `await loadNoble()` before `generatePrivateKey`/`generatePublicKey` |
 
 Not in this tree: **activitystreams-pane**, the one pane that needed React.
 
-Measured on one JSON-LD document served by JSS with four external panes (uncompressed, 17 Nov 2026): 799 requests and 6,010 KB before; 484 requests and 3,696 KB after. `node tools/graph.mjs` lists what a page fetches before it can start, per package; `--why <file or package>` shows the import chain that pulls something in.
+Measured on one JSON-LD document served by JSS with four external panes (uncompressed, 17 Nov 2026): 799 requests and 6,010 KB before; 438 requests and 3,420 KB after. `node tools/graph.mjs` lists what a page fetches before it can start, per package; `--why <file or package>` shows the import chain that pulls something in.
 
 ## Run it locally
 

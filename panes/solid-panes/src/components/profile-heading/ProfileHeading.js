@@ -3,7 +3,9 @@ import { authn, store } from 'solid-logic'
 
 import { customElement, WebComponent, widgets } from 'solid-ui'
 import { html, nothing,} from 'lit'
-import { createHeadingEditDialog } from './editor/sections/heading/HeadingEditDialog.js'
+// Lazy here (upstream: a static import): the edit dialog, about 30 modules, is fetched when
+// Edit is first pressed. It is async and ignores its event argument, so nothing else changes.
+const createHeadingEditDialog = (...args) => import('./editor/sections/heading/HeadingEditDialog.js').then(m => m.createHeadingEditDialog(...args))
 
 import { addFriend, checkFriend, friendTexts } from './friendActions.js'
 import { formatDisplayError } from './editor/utils/errorDisplay.js'

@@ -7,8 +7,9 @@ import { importCss } from './importCss.js'
 import { icons, ns } from 'solid-ui'
 import { Util } from 'rdflib'
 import { authn } from 'solid-logic'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+// Lazy here (upstream: static imports): marked and DOMPurify are fetched when a Markdown
+// file is first drawn.
+const loadMarkdown = () => Promise.all([import('marked'), import('dompurify')]).then(([m, d]) => ({ marked: m.marked, DOMPurify: d.default }))
 
 importCss(new URL('./humanReadablePane.css', import.meta.url))
 
@@ -890,7 +891,8 @@ const humanReadablePane = {
 
     // render markdown to html in a DIV element
     const renderMarkdownContent = function (frame) {
-      kb.fetcher.webOperation('GET', subject.uri).then(response => {
+      kb.fetcher.webOperation('GET', subject.uri).then(async response => {
+        const { marked, DOMPurify } = await loadMarkdown()
         const markdownText = response.responseText ?? ''
         const lines = Math.min(30, markdownText.split(/\n/).length + 5)
         const res = marked.parse(markdownText, { async: false })
