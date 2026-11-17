@@ -92,7 +92,7 @@ export class ChatChannel {
       // privateKey the cached private key of me, cached in store
       const privateKey = await getPrivateKey(me) // me.uri)
 
-      const sig = signMsg(msg, privateKey)
+      const sig = await signMsg(msg, privateKey)
       sts.push($rdf.st(message, $rdf.sym(`${SEC}proofValue`), $rdf.lit(sig), chatDocument))
     }
     if (thread) {

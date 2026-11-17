@@ -25,6 +25,22 @@ Licence: AGPL-3.0-or-later for this repository (LICENSE). The files converted fr
 
 This tree began as [solidos-nobuild](https://github.com/JavaScriptSolidServer/solidos-nobuild) and carries its history.
 
+## Loaded on first use
+
+Upstream's bundle holds everything, so nothing there is "later". Here every file is a request, so what a page does not need is not fetched until it does. `label()`, which decides whether a pane is offered, is never deferred, so the same panes are offered for the same things.
+
+| What | Fetched when | Deviation from upstream |
+|---|---|---|
+| profile-pane's view and QR code card (about 70 modules) | a profile is first drawn | `index.js` no longer re-exports the "add me to your friends" helpers; import them from `specialButtons/addMeToYourFriends.js` |
+| contacts-pane's address book, individual view and minting | first used | `contactsPane.js` no longer re-exports the `contactLogic` and `webidControl` helpers |
+| folder-pane's view and provider | a folder is first drawn | none |
+| CodeMirror (`CodeEditor`) | an editor is first initialised | none: `initialize()` was already async |
+| @noble/curves and @noble/hashes (chat signatures) | a message is first signed or checked | `signMsg`, `verifySignature` and `getMsgHash` are async; `await loadNoble()` before `generatePrivateKey`/`generatePublicKey` |
+
+Not in this tree: **activitystreams-pane**, the one pane that needed React.
+
+Measured on one JSON-LD document served by JSS with four external panes (uncompressed, 17 Nov 2026): 799 requests and 6,010 KB before; 484 requests and 3,696 KB after. `node tools/graph.mjs` lists what a page fetches before it can start, per package; `--why <file or package>` shows the import chain that pulls something in.
+
 ## Run it locally
 
 ```sh
@@ -155,7 +171,7 @@ More that the shell needed:
 
 ### Published builds, for A/B
 
-Only **activitystreams-pane** (React) still loads as a published build: `src/importmap.js` maps it to esm.sh with every dependency external (`*` prefix), so `solid-ui`, `rdflib`, `lit`, … resolve to the single copies mapped here, and React 19 is mapped once. `pane-registry` is CommonJS that builds its exports at runtime, so `src/vendor/pane-registry.js` re-exports its named members.
+`pane-registry` is CommonJS that builds its exports at runtime, so `src/vendor/pane-registry.js` re-exports its named members.
 
 `?published=issue-pane,contacts-pane` on any page swaps those panes back to their published npm builds. That is how each upstream finding below was checked: same behaviour with upstream's own build means it is not the conversion.
 

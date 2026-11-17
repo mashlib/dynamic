@@ -1,6 +1,7 @@
 import * as debug from '../lib/debug.js'
-import { schnorr } from '@noble/curves/secp256k1.js'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+// The curve library is fetched on first use (see signature.js): getPublicKey and getPrivateKey
+// wait for it; a caller of generatePrivateKey or generatePublicKey awaits loadNoble() first.
+import { schnorr, bytesToHex, hexToBytes, loadNoble } from './signature.js'
 import ns from '../lib/ns.js'
 import { store } from 'solid-logic'
 import { NamedNode } from 'rdflib'
@@ -36,6 +37,7 @@ export async function getPublicKey (webId) {
 }
 
 export async function getPrivateKey (webId) {
+  await loadNoble()
   await store.fetcher.load(webId)
   // find keys url's
   const publicKeyDoc = await pubKeyUrl(webId)

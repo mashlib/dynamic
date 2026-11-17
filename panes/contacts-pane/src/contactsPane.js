@@ -12,15 +12,14 @@ to change its state according to an ontology, comment on it, etc.
 */
 
 import * as UI from 'solid-ui'
-import { mintNewAddressBook } from './mintNewAddressBook.js'
-import { renderIndividual } from './individual.js'
+// Lazy here (upstream: static imports): the address book component, the individual view and
+// the minting code are fetched when first needed. label() needs none of them.
 importCss(new URL('./styles/utilities.css', import.meta.url))
 importCss(new URL('./styles/contactsPane.css', import.meta.url))
 import { complain, setupResponsiveStacking } from './localUtils.js'
 import * as debug from './debug.js'
 importCss(new URL('./styles/contactsRDFFormsEnforced.css', import.meta.url))
 
-import './components/address-book/index.js'
 
 const ns = UI.ns
 
@@ -43,7 +42,8 @@ export default {
 
   mintClass: UI.ns.vcard('AddressBook'),
 
-  mintNew: mintNewAddressBook, // Make a new address book
+  // Make a new address book
+  mintNew: (context, options) => import('./mintNewAddressBook.js').then(m => m.mintNewAddressBook(context, options)),
 
   //  Render the pane
   render (subject, dataBrowserContext, paneOptions = {}) {
@@ -79,6 +79,7 @@ export default {
         t[ns.schema('Organization').uri]
       ) {
         try {
+          const { renderIndividual } = await import('./individual.js')
           await renderIndividual(dom, div, subject, dataBrowserContext)
         } catch (err) {
           debug.error('Error rendering contact. Stack: ' + err)
@@ -87,6 +88,7 @@ export default {
       // Render an AddressBook instance; see components/address-book for the
       // whole view.
       } else if (t[ns.vcard('AddressBook').uri]) {
+        await import('./components/address-book/index.js')
         const addressBook = dom.createElement('contacts-pane-address-book')
         addressBook.book = subject
         addressBook.options = {}
@@ -103,5 +105,6 @@ export default {
   } // render function
 } // pane object
 
-export { saveNewGroup, addPersonToGroup, groupMembers, saveNewContact } from './contactLogic.js'
-export { addWebIDToContacts, removeWebIDFromContacts, getPersonas } from './webidControl.js'
+// Not re-exported here (upstream re-exports saveNewGroup, addPersonToGroup, groupMembers,
+// saveNewContact, addWebIDToContacts, removeWebIDFromContacts, getPersonas): import them
+// from './contactLogic.js' and './webidControl.js'.

@@ -1,6 +1,21 @@
-import { schnorr } from '@noble/curves/secp256k1.js'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
-import { sha256 } from '@noble/hashes/sha2.js'
+// @noble/curves and @noble/hashes (about 330 KB) are fetched when a message is first signed
+// or checked, not when solid-ui is loaded. So signMsg, verifySignature and getMsgHash are
+// async here (upstream: synchronous).
+export let schnorr, bytesToHex, hexToBytes, sha256
+let loading = null
+/** Fetch the curve library. Await this before the synchronous key functions of keys.js. */
+export function loadNoble () {
+  loading ??= Promise.all([
+    import('@noble/curves/secp256k1.js'),
+    import('@noble/hashes/utils.js'),
+    import('@noble/hashes/sha2.js')
+  ]).then((m) => {
+    ;({ schnorr } = m[0])
+    ;({ bytesToHex, hexToBytes } = m[1])
+    ;({ sha256 } = m[2])
+  })
+  return loading
+}
 
 // import {utf8Encoder} from './utils'
 // import { getPublicKey } from './keys.js'
@@ -63,7 +78,8 @@ export function serializeMsg (msg) {
   return JSON.stringify(msg)
 }
 
-export function getMsgHash (message) {
+export async function getMsgHash (message) {
+  await loadNoble()
   const msgHash = sha256(utf8Encoder.encode(serializeMsg(message)))
   return bytesToHex(msgHash)
 }
@@ -90,16 +106,18 @@ export function getMsgHash (message) {
   return true
 } */
 
-export function verifySignature (sig, message, pubKey) {
+export async function verifySignature (sig, message, pubKey) {
+  const hash = await getMsgHash(message)
   return schnorr.verify(
     hexToBytes(sig),
-    hexToBytes(getMsgHash(message)),
+    hexToBytes(hash),
     hexToBytes(pubKey)
   )
 }
 
-export function signMsg (message, key) {
+export async function signMsg (message, key) {
+  const hash = await getMsgHash(message)
   return bytesToHex(
-    schnorr.sign(hexToBytes(getMsgHash(message)), hexToBytes(key))
+    schnorr.sign(hexToBytes(hash), hexToBytes(key))
   )
 }

@@ -5,7 +5,7 @@ import dashboardPane from './dashboard/dashboardPane.js'
 import basicPreferences from './dashboard/basicPreferences.js'
 import issuePane from 'issue-pane'
 import contactsPane from 'contacts-pane'
-import activityStreamsPane from 'activitystreams-pane'
+// activitystreams-pane is not part of this tree (it was the only pane needing React).
 import padPane from './pad/padPane.js'
 // import argumentPane from './argument/argumentPane.js'
 import transactionPane from './transaction/pane.js'
@@ -60,7 +60,6 @@ export function registerPanes (register) {
   register(basicPreferences)
   register(issuePane)
   register(contactsPane)
-  register(activityStreamsPane)
 
   register(padPane)
   // register(argumentPane) // A position in an argument tree

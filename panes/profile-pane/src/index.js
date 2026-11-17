@@ -1,17 +1,15 @@
 // (type-only import removed: DataBrowserContext from 'pane-registry')
 import { NamedNode, LiveStore } from 'rdflib'
 import { render } from 'lit-html'
-import { ProfileView } from './ProfileView.js'
+// Lazy here (upstream: static imports): the view and the QR code card, about 70 modules, are
+// fetched when a profile is first drawn. label() needs none of them.
+const loadView = () => Promise.all([import('./ProfileView.js'), import('./sections/qrcode/QRCodeCard.js')])
 import { icons, ns } from 'solid-ui'
-import { hydrateQRCodes } from './sections/qrcode/QRCodeCard.js'
 import { createResizeDrivenSync } from './utils/resize.js'
 // (type-only import removed: Layout from './types.js')
-export {
-  addMeToYourFriendsDiv,
-  createAddMeToYourFriendsButton,
-  saveNewThing,
-  checkIfThingExists
-} from './specialButtons/addMeToYourFriends.js'
+// Not re-exported here (upstream re-exports addMeToYourFriendsDiv, createAddMeToYourFriendsButton,
+// saveNewThing, checkIfThingExists): a static re-export would pull the whole pane in at
+// start-up. Import them from './specialButtons/addMeToYourFriends.js'.
 
 const MOBILE_LAYOUT_MAX_WIDTH = 768
 const HEADING_SECTION_SELECTOR = '[data-profile-section="heading"]'
@@ -128,6 +126,7 @@ const Pane = {
     target.dataset.layout = currentLayout
 
     const renderWithData = async () => {
+      const [{ ProfileView }, { hydrateQRCodes }] = await loadView()
       applyEnvironmentAttributes(target, context)
       target.dataset.layout = currentLayout
       render(await ProfileView(subject, context, currentLayout, renderWithData), target)

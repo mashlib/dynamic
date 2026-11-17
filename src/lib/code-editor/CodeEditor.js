@@ -1,18 +1,42 @@
 
-import { Compartment, EditorState } from '@codemirror/state'
-import { EditorView, drawSelection, keymap, lineNumbers } from '@codemirror/view'
-import { defaultHighlightStyle, syntaxHighlighting, StreamLanguage } from '@codemirror/language'
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { css } from '@codemirror/lang-css'
-import { html } from '@codemirror/lang-html'
-import { javascript } from '@codemirror/lang-javascript'
-import { json } from '@codemirror/lang-json'
-import { markdown } from '@codemirror/lang-markdown'
-import { xml } from '@codemirror/lang-xml'
-import { vscodeDark, vscodeLight } from '@uiw/codemirror-theme-vscode'
-import { turtle } from '@codemirror/legacy-modes/mode/turtle'
-import { sparql } from '@codemirror/legacy-modes/mode/sparql'
-import { ntriples } from '@codemirror/legacy-modes/mode/ntriples'
+// CodeMirror (about 600 KB over 30 requests) is fetched when an editor is first initialised,
+// not when solid-ui is loaded: upstream bundles it, here every page would download it.
+let Compartment, EditorState, EditorView, drawSelection, keymap, lineNumbers, defaultHighlightStyle, syntaxHighlighting, StreamLanguage, defaultKeymap, history, historyKeymap, indentWithTab, css, html, javascript, json, markdown, xml, vscodeDark, vscodeLight, turtle, sparql, ntriples
+let loading = null
+function loadCodeMirror () {
+  loading ??= Promise.all([
+    import('@codemirror/state'),
+    import('@codemirror/view'),
+    import('@codemirror/language'),
+    import('@codemirror/commands'),
+    import('@codemirror/lang-css'),
+    import('@codemirror/lang-html'),
+    import('@codemirror/lang-javascript'),
+    import('@codemirror/lang-json'),
+    import('@codemirror/lang-markdown'),
+    import('@codemirror/lang-xml'),
+    import('@uiw/codemirror-theme-vscode'),
+    import('@codemirror/legacy-modes/mode/turtle'),
+    import('@codemirror/legacy-modes/mode/sparql'),
+    import('@codemirror/legacy-modes/mode/ntriples')
+  ]).then((m) => {
+    ;({ Compartment, EditorState } = m[0])
+    ;({ EditorView, drawSelection, keymap, lineNumbers } = m[1])
+    ;({ defaultHighlightStyle, syntaxHighlighting, StreamLanguage } = m[2])
+    ;({ defaultKeymap, history, historyKeymap, indentWithTab } = m[3])
+    ;({ css } = m[4])
+    ;({ html } = m[5])
+    ;({ javascript } = m[6])
+    ;({ json } = m[7])
+    ;({ markdown } = m[8])
+    ;({ xml } = m[9])
+    ;({ vscodeDark, vscodeLight } = m[10])
+    ;({ turtle } = m[11])
+    ;({ sparql } = m[12])
+    ;({ ntriples } = m[13])
+  })
+  return loading
+}
 
 export class CodeEditor {
   _view = null
@@ -31,6 +55,7 @@ export class CodeEditor {
     onDirtyChange,
     accessibility
   ) {
+    await loadCodeMirror()
     if (this._view) {
       this._view.destroy()
     }

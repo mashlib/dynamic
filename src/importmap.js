@@ -19,7 +19,7 @@ const components = ['account', 'avatar', 'button', 'combobox', 'combobox-option'
 const PUBLISHED = {
   'solid-panes': '5.1.0',
   'profile-pane': '4.1.0', 'folder-pane': '4.1.0', 'source-pane': '4.1.0', 'chat-pane': '4.0.0',
-  'contacts-pane': '4.1.0', 'issue-pane': '4.1.0', 'meeting-pane': '4.1.0', 'activitystreams-pane': '2.1.0',
+  'contacts-pane': '4.1.0', 'issue-pane': '4.1.0', 'meeting-pane': '4.1.0',
 }
 const storedPublished = (() => { try { return localStorage.getItem('published') } catch { return null } })()
 const published = (new URL(location.href).searchParams.get('published') ?? storedPublished ?? '').split(',').filter(p => PUBLISHED[p])
@@ -49,10 +49,6 @@ script.textContent = JSON.stringify({
     'issue-pane': here('../panes/issue-pane/src/issuePane.js'),
     'meeting-pane': here('../panes/meeting-pane/src/meetingPane.js'),
 
-    // Not converted: activitystreams-pane (React). Its published build via esm.sh
-    // with every dependency external (* prefix), so solid-ui, rdflib, … resolve
-    // to the single copies mapped here.
-    'activitystreams-pane': 'https://esm.sh/*activitystreams-pane@2.1.0',
     ...Object.fromEntries(published.map(p => [p, `https://esm.sh/*${p}@${PUBLISHED[p]}`])),
     // Global names the webpack UMD builds of the panes required (require("SolidLogic"),
     // require("UI")); kept for any published build that still uses them.
@@ -60,13 +56,10 @@ script.textContent = JSON.stringify({
     $rdf: 'https://cdn.jsdelivr.net/npm/rdflib@2.4.1/+esm', // mashlib's webpack aliases this too
     UI: here('./solid-ui.js'),
 
-    // solid-panes' own dependencies, and activitystreams-pane's React (one instance)
+    // solid-panes' own dependencies
     marked: 'https://esm.sh/marked@18.0.14',
     dompurify: 'https://esm.sh/dompurify@3.4.16',
     '@solid/better-simple-slideshow': 'https://esm.sh/@solid/better-simple-slideshow@0.1.0',
-    react: 'https://esm.sh/react@19.3.0',
-    'react-dom/client': 'https://esm.sh/react-dom@19.3.0/client?external=react',
-    'react-jss': 'https://esm.sh/react-jss@10.10.0?external=react',
     'timeago.js': 'https://esm.sh/timeago.js@4.0.2',
 
     lit: 'https://cdn.jsdelivr.net/npm/lit@3.3.1/+esm',

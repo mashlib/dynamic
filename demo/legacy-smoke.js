@@ -13,7 +13,7 @@ import ns from '../src/lib/ns.js'
 import * as UI from '../src/solid-ui.js'
 import { parse } from 'rdflib'
 import { generatePrivateKey, generatePublicKey } from '../src/chat/keys.js'
-import { getBlankMsg, signMsg, verifySignature } from '../src/chat/signature.js'
+import { getBlankMsg, signMsg, verifySignature, loadNoble } from '../src/chat/signature.js'
 
 const out = document.getElementById('smoke')
 const stage = document.getElementById('stage')
@@ -126,13 +126,14 @@ await attempt('acl', async () => {
 })
 
 await attempt('chat signature', async () => {
+  await loadNoble() // the curve library is fetched on first use
   const key = generatePrivateKey()
   const pub = generatePublicKey(key)
   const msg = { ...getBlankMsg(), id: 'https://pod.example/chat#m1', created: '2026-10-21T12:00:00Z', content: 'hello', maker: 'https://alice.example/profile/card#me' }
-  const sig = signMsg(msg, key)
+  const sig = await signMsg(msg, key)
 
-  check('chat signMsg → verifySignature (noble schnorr)', verifySignature(sig, msg, pub) === true)
-  check('chat verifySignature rejects a changed message', verifySignature(sig, { ...msg, content: 'hullo' }, pub) === false)
+  check('chat signMsg → verifySignature (noble schnorr)', await verifySignature(sig, msg, pub) === true)
+  check('chat verifySignature rejects a changed message', await verifySignature(sig, { ...msg, content: 'hullo' }, pub) === false)
 })
 
 await attempt('header + footer', async () => {

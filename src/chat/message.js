@@ -199,7 +199,12 @@ export async function renderMessageRow (channelObject, message, fresh, options, 
       const regex = /[0-9A-Fa-f]{6}/g
       if (!publicKey?.match(regex)) debug.warn('invalid publicKey hex string\n' + creator.uri + '\n' + publicKey)
       // verify signature
-      else if (signature?.value && !verifySignature(signature?.value, msg, publicKey)) debug.warn('invalid signature\n' + msg.id)
+      else if (signature?.value) {
+        verifySignature(signature.value, msg, publicKey).then(
+          (valid) => { if (!valid) debug.warn('invalid signature\n' + msg.id) },
+          (error) => debug.warn('signature could not be checked\n' + msg.id + '\n' + error)
+        )
+      }
     })
   }
 

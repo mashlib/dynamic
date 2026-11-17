@@ -4,8 +4,10 @@ import { importCss } from './importCss.js'
  **  This outline pane lists the members of a folder
  */
 
-import './components/folder-pane-view/index.js'
-import './components/folder-pane-provider/index.js'
+// Lazy here (upstream: static imports): the view and its provider are fetched when a folder
+// is first drawn. An element made before its class arrives is upgraded when it does, and
+// Lit keeps the properties set on it meanwhile.
+const loadView = () => Promise.all([import('./components/folder-pane-view/index.js'), import('./components/folder-pane-provider/index.js')])
 
 import { icons } from 'solid-ui'
 import { isJavaScriptFile, isJsonFile } from './helpers.js'
@@ -65,6 +67,7 @@ export default {
   // Render a file folder in a LDP/solid system
   render: function (subject, context, paneOptions) {
 
+    void loadView()
     const dom = context.dom
     const div = dom.createElement('div')
     div.classList.add('instancePane', 'folder-pane')
