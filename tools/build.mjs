@@ -265,7 +265,24 @@ for (const name of ['databrowser.html', 'browse.html']) {
     ['<script src="../src/importmap.js"></script>', '<script src="dist/manifest.js"></script>\n    <script src="src/importmap.js"></script>'],
     ["await import('./src/index.js')", "await import('./dist/mashlib.js')"],
     ['<a class="browse-home" href="browse.html"', '<a class="browse-home" href="./"'],
-    [/href="browse\.html\?uri=/g, 'href="./?uri=']
+    [/href="browse\.html\?uri=/g, 'href="./?uri='],
+    // The front page is the one people share, so it carries the share-preview tags (picture: tools/og.html).
+    ['<title>Browse · SolidOS</title>', `<title>mashlib dynamic · SolidOS with panes by link</title>
+    <meta name="description" content="SolidOS 3.1 with no build step. Paste the address of anything on a Solid pod and look at it, and add a new view of your data from a link."/>
+    <link rel="canonical" href="https://mashlib.com/dynamic/"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:site_name" content="mashlib"/>
+    <meta property="og:title" content="mashlib dynamic · send a link, get a pane"/>
+    <meta property="og:description" content="SolidOS 3.1 with no build step. Add a new view of your data from a link: ?pane= loads a pane into the data browser, after asking you first."/>
+    <meta property="og:url" content="https://mashlib.com/dynamic/"/>
+    <meta property="og:image" content="https://mashlib.com/dynamic/og.png"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="630"/>
+    <meta property="og:image:alt" content="mashlib dynamic: a link with ?pane= in the address bar, a prompt asking to allow the pane, and a chess board drawn by it"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="mashlib dynamic · send a link, get a pane"/>
+    <meta name="twitter:description" content="SolidOS 3.1 with no build step. Add a new view of your data from a link."/>
+    <meta name="twitter:image" content="https://mashlib.com/dynamic/og.png"/>`]
   ]
   for (const [from, to] of frontSteps) {
     if (typeof from === 'string' ? !front.includes(from) : !from.test(front)) throw new Error('mashlib/browse.html has changed: ' + String(from).slice(0, 50))
