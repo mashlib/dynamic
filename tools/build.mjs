@@ -257,6 +257,23 @@ for (const name of ['databrowser.html', 'browse.html']) {
   writeFileSync(resolve(out, name), page)
 }
 
+// The front page of the site is the browse page, one level up from dist/: the same file with
+// its addresses adjusted.
+{
+  let front = readFileSync(resolve(root, 'mashlib/browse.html'), 'utf8')
+  const frontSteps = [
+    ['<script src="../src/importmap.js"></script>', '<script src="dist/manifest.js"></script>\n    <script src="src/importmap.js"></script>'],
+    ["await import('./src/index.js')", "await import('./dist/mashlib.js')"],
+    ['<a class="browse-home" href="browse.html"', '<a class="browse-home" href="./"'],
+    [/href="browse\.html\?uri=/g, 'href="./?uri=']
+  ]
+  for (const [from, to] of frontSteps) {
+    if (typeof from === 'string' ? !front.includes(from) : !from.test(front)) throw new Error('mashlib/browse.html has changed: ' + String(from).slice(0, 50))
+    front = front.replace(from, to)
+  }
+  writeFileSync(resolve(root, 'index.html'), front.replace('<head>', '<head>\n    <!-- Made by tools/build.mjs from mashlib/browse.html. Edit that file, then npm run build. -->'))
+}
+
 // Report: what a page fetches to start, and what waits.
 const outputs = result.metafile.outputs
 const key = (name) => Object.keys(outputs).find(k => k.endsWith('/' + name) || k === 'dist/' + name)

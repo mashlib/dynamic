@@ -2,7 +2,7 @@
 
 [SolidOS](https://github.com/SolidOS) 3.1 — mashlib 3.1.0, solid-panes 5.1.0, solid-ui 5.1.0 and the panes — as plain ES modules. Same data browser, same panes, nothing compiled in: the shell and every pane are files loaded from URLs. Edit a file, reload. No Vite, no webpack, no TypeScript compiler, no plugins.
 
-Live: https://mashlib.github.io/dynamic/ (the data browser, in its joined form; add `?uri=<any public Solid resource>`). The same browser straight from the source files is `mashlib/databrowser.html`; the component gallery is `gallery.html`.
+Live: https://mashlib.github.io/dynamic/ — type or paste the address of a pod, a folder or a profile; `?uri=<address>` opens one straight away. That page is the joined copy (below). The same thing straight from the source files, with no build, is `mashlib/browse.html`; the component gallery is `gallery.html`.
 
 ## Point a server at it
 
@@ -80,7 +80,7 @@ Measured on one JSON-LD document served by JSS with four external panes (uncompr
 python3 -m http.server 8731   # any static server
 ```
 
-- `index.html` — opens the data browser's joined copy, `dist/databrowser.html` (`?uri=` passed on).
+- `index.html` — the site's front page: the browse page in its joined form, made by the build from `mashlib/browse.html`.
 - `gallery.html` — gallery of every component (mock auth). `?smoke` runs 23 click-through checks, `?tags` checks all 27 tags register.
 - `login.html` — real Solid login through `solid-ui-provider` → SolidAuth → solid-logic. `?smoke` runs 10 checks.
 - `mashlib/databrowser.html` — **SolidOS itself**: mashlib's shell, solid-panes and every registered pane. On a pod, the page's own URL is the subject, as upstream; locally, `?uri=` picks one (e.g. a WebID, a folder, a Turtle file).
