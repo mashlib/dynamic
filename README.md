@@ -239,3 +239,21 @@ Found while converting and testing; each reproduced with upstream's own code or 
 | solid-ui 5.0.1 (built CSS) | The Tailwind reset in every component's `:host` sets `font-family: ui-sans-serif, …`, overriding the theme's Atkinson Hyperlegible for everything inside a component, panes included (they render in solid-panes' file-explorer component) | Same with upstream's build; reproduced faithfully |
 | solid-panes 5.0.0 | `argument/argumentPane.js` uses `module.__dirname`; dead code (commented out in `registerPanes.js`) | Left as is |
 
+
+## Releases
+
+`dist/` is always the newest build: the place to try a change. A page that people rely on points at a numbered
+copy, which never changes once made:
+
+```
+https://mashlib.com/dynamic/v/0.0.1/dist/mashlib.js
+```
+
+```sh
+npm run build
+node tools/release.mjs 0.0.2     # makes v/0.0.2/ from dist/ and src/importmap.js; refuses an existing number
+```
+
+Each copy has a `RELEASE.json` saying which commit it came from. To move a page to a release, change the number in
+its address; to go back, change it back. The number is this build's own and stays at 0.0.x for now; the version in
+`package.json` says which SolidOS is inside.

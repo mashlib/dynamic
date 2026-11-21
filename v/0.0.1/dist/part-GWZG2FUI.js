@@ -1,0 +1,1 @@
+function l(){return Math.random().toString(36).substring(2,15)}function o(t,u){let e=null,n=(...r)=>{n.cancel(),e=setTimeout(()=>u(...r),t)};return n.cancel=()=>{e!==null&&(clearTimeout(e),e=null)},n}export{l as a,o as b};
