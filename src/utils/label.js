@@ -77,6 +77,7 @@ export function label (thing, initialCap = false) {
     }
   }
 
+  s = slice(s, '/profile/card.jsonld#me')
   s = slice(s, '/profile/card#me')
   s = slice(s, '#this')
   s = slice(s, '#me')

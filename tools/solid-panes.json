@@ -76,5 +76,37 @@
   "customMedia": {
     "file": "../../upstream-solid-ui/src/styles/breakpoints.css",
     "import": "solid-ui/breakpoints.css"
-  }
+  },
+  "patches": [
+    {
+      "file": "utils/webIdUtils.js",
+      "find": "const DEFAULT_PROFILE_PATH = 'profile/card#me'\n",
+      "replace": "// Where a pod keeps its owner's profile is not fixed: some servers name the document\n// `card`, others `card.jsonld`. These are tried in turn.\nconst DEFAULT_PROFILE_PATHS = ['profile/card#me', 'profile/card.jsonld#me']\n\n// The first of the usual profile addresses under `base` that loads, or undefined.\nasync function loadDefaultProfile (base) {\n  for (const path of DEFAULT_PROFILE_PATHS) {\n    const webId = sym(`${base}${path}`)\n    try {\n      await store.fetcher.load(webId)\n      return webId\n    } catch (err) {\n      // not there: try the next\n    }\n  }\n  return undefined\n}\n",
+      "why": "Pods do not all name the profile document `card`: JSS pods use `card.jsonld`. Try the usual addresses in turn instead of assuming one."
+    },
+    {
+      "file": "utils/webIdUtils.js",
+      "find": "    const webId = sym(`${pod}${DEFAULT_PROFILE_PATH}`)\n    try {\n      await store.fetcher.load(webId)\n      return webId\n    } catch (err) {\n      // ignore any failure and continue fallback lookup\n    }\n",
+      "replace": "    const webId = await loadDefaultProfile(pod)\n    if (webId) return webId\n",
+      "why": "Pods do not all name the profile document `card`: JSS pods use `card.jsonld`. Try the usual addresses in turn instead of assuming one."
+    },
+    {
+      "file": "utils/webIdUtils.js",
+      "find": "        const derivedPod = `${uriUrl.origin}/${pathSegments[0]}/`\n        const derivedWebId = sym(`${derivedPod}${DEFAULT_PROFILE_PATH}`)\n        await store.fetcher.load(derivedWebId)\n        return derivedWebId\n",
+      "replace": "        const derivedPod = `${uriUrl.origin}/${pathSegments[0]}/`\n        const derivedWebId = await loadDefaultProfile(derivedPod)\n        if (derivedWebId) return derivedWebId\n",
+      "why": "Pods do not all name the profile document `card`: JSS pods use `card.jsonld`. Try the usual addresses in turn instead of assuming one."
+    },
+    {
+      "file": "utils/webIdUtils.js",
+      "find": "  const webId = sym(`${pod.uri}${DEFAULT_PROFILE_PATH}`)\n  try {\n    await store.fetcher.load(webId)\n    return getName(store, webId)\n  } catch (err) {\n    if (!isFetchErrorStatus(err, 403)) {\n      console.error('getNameOfPodOwner failed on default profile:', err)\n    }\n  }\n",
+      "replace": "  const webId = await loadDefaultProfile(pod.uri)\n  if (webId) return getName(store, webId)\n",
+      "why": "Pods do not all name the profile document `card`: JSS pods use `card.jsonld`. Try the usual addresses in turn instead of assuming one."
+    },
+    {
+      "file": "utils/webIdUtils.js",
+      "find": "      const derivedPod = `${uriUrl.origin}/${pathSegments[0]}/`\n      const derivedWebId = sym(`${derivedPod}${DEFAULT_PROFILE_PATH}`)\n      await store.fetcher.load(derivedWebId)\n      return getName(store, derivedWebId)\n",
+      "replace": "      const derivedPod = `${uriUrl.origin}/${pathSegments[0]}/`\n      const derivedWebId = await loadDefaultProfile(derivedPod)\n      if (derivedWebId) return getName(store, derivedWebId)\n",
+      "why": "Pods do not all name the profile document `card`: JSS pods use `card.jsonld`. Try the usual addresses in turn instead of assuming one."
+    }
+  ]
 }

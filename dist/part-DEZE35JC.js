@@ -1,4 +1,4 @@
-import{a as s}from"./part-V7XQEHON.js";import{a as p,b as f}from"./part-VHSBPZHI.js";import{c as u}from"./part-GPLAS2FA.js";import{A as d}from"./part-SVX36NT2.js";import{a as i,e as c}from"./part-VOCLXBLR.js";function m(t,o){if(!t||!o)return!1;let r=t.sym(o),n=t.findTypeURIs(r);return!!(n[s.ldp("Container").uri]||n[s.ldp("BasicContainer").uri]||r.uri.endsWith("/"))}function U(t,o){if(!t||!o)return 0;let r=t.sym(o),n=new Set;for(let a of t.each(r,s.ldp("contains")))if(a.termType==="NamedNode"){let e=a;d.resource.isHiddenFile(e)||n.add(e.uri)}return n.size}var g=await p(u(`:host {
+import{a as s}from"./part-V7XQEHON.js";import{a as p,b as f}from"./part-VHSBPZHI.js";import{c as u}from"./part-GPLAS2FA.js";import{A as d}from"./part-SVX36NT2.js";import{a as i,e as c}from"./part-VOCLXBLR.js";function m(t,o){if(!t||!o)return!1;let r=t.sym(o),n=t.findTypeURIs(r);return!!(n[s.ldp("Container").uri]||n[s.ldp("BasicContainer").uri]||r.uri.endsWith("/"))}function C(t,o){if(!t||!o)return 0;let r=t.sym(o),n=new Set;for(let a of t.each(r,s.ldp("contains")))if(a.termType==="NamedNode"){let e=a;d.resource.isHiddenFile(e)||n.add(e.uri)}return n.size}var g=await p(u(`:host {
   .file-explorer-header-more-button {
     width: var(--solid-ui-clickable-area, 42px);
     height: var(--solid-ui-clickable-area, 42px);
@@ -41,4 +41,4 @@ import{a as s}from"./part-V7XQEHON.js";import{a as p,b as f}from"./part-VHSBPZHI
               </solid-ui-menu-item>
             `:c}
       </solid-ui-menu>
-    `}};customElements.get("solid-ui-resource-actions-menu")||customElements.define("solid-ui-resource-actions-menu",l);export{m as a,U as b,l as c};
+    `}};customElements.get("solid-ui-resource-actions-menu")||customElements.define("solid-ui-resource-actions-menu",l);export{m as a,C as b,l as c};

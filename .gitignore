@@ -6,3 +6,4 @@ tools/.old-*.json
 tools/.hand-*.json
 node_modules/
 .chrome-profile-tool-index/
+.chrome-profile-jsonld/

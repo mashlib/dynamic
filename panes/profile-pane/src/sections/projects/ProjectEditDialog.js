@@ -29,7 +29,7 @@ function isValidProjectUrl(value) {
     const parsed = new URL(text)
     return (
       parsed.protocol === 'https:' &&
-      parsed.pathname === '/profile/card' &&
+      (parsed.pathname.endsWith('/profile/card') || parsed.pathname.endsWith('/profile/card.jsonld')) &&
       parsed.hash === '#me'
     )
   } catch {
@@ -62,7 +62,7 @@ function validateProjectBeforeSave(row) {
     return 'WebID is required.'
   }
   if (!isValidProjectUrl(row.url)) {
-    return 'Please enter a valid WebID in the form https://example.com/profile/card#me.'
+    return 'Please enter a valid WebID, for example https://example.com/profile/card#me or https://example.com/profile/card.jsonld#me.'
   }
   return null
 }
