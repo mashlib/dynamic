@@ -7,3 +7,4 @@ tools/.hand-*.json
 node_modules/
 .chrome-profile-tool-index/
 .chrome-profile-jsonld/
+.chrome-profile-tix/
