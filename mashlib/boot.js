@@ -43,7 +43,26 @@ await import('./src/index.js')
 
 window.panes.runDataBrowser()
 
-// 4. As databrowser.html: keep --app-header-height in step with the header.
+// 4. The person's own panes and apps (./userTools.js): once logged in, the panes registered
+//    in their tool index are added, after asking about a site not allowed here before, and
+//    the apps in it are offered as "Open with" links.
+import('./userTools.js').then(async ({ userTools }) => {
+  const { store } = window.SolidLogic.solidLogicSingleton
+  const outliner = window.panes.getOutliner(document)
+  const subject = () => location.href
+  const tools = await userTools({
+    panes: window.panes,
+    store,
+    $rdf: window.$rdf,
+    authn: window.SolidLogic.authn,
+    subject,
+    show: () => outliner.GotoSubject(window.$rdf.sym(subject()), true, undefined, true, undefined)
+  })
+
+  window.addEventListener('popstate', () => tools.refresh())
+}).catch(error => console.warn('[browse] own panes and apps not set up: ' + (error && error.message ? error.message : error)))
+
+// 5. As databrowser.html: keep --app-header-height in step with the header.
 const header = document.getElementById('mainSolidUiHeader')
 
 if (header) {
