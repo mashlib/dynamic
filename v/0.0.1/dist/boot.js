@@ -1,0 +1,82 @@
+// Made by tools/build.mjs from mashlib/boot.js: the joined copy of the data browser.
+// Entry point for a Solid server's ES-module data browser mode, e.g. JSS:
+//
+//   jss start --mashlib-module https://<pod>/public/solidos/mashlib/boot.js
+//
+// The server serves, for every resource a browser navigates to, a bare page with
+// <div id="mashlib"> and this module. So this does what mashlib's databrowser.html
+// does: the importmap, the page markup, mashlib, then runDataBrowser() for the
+// page's own URL. (Also fetches boot.css: <moduleUrl>.css; mash.css comes via
+// mashlib's own importCss.)
+
+const here = (path) => new URL(path, import.meta.url).href
+
+// 1. The importmap: src/importmap.js is a classic script that writes it next to
+//    itself. Import maps added before the first bare import still apply.
+for (const src of [here('./manifest.js'), here('../src/importmap.js')]) await new Promise((resolve, reject) => {
+  const script = document.createElement('script')
+
+  script.src = src
+  script.onload = resolve
+  script.onerror = () => reject(new Error(`could not load ${script.src}`))
+  document.head.append(script)
+})
+
+// 2. The markup of mashlib's src/databrowser.html, into the server's page.
+document.body.id = 'PageBody'
+document.body.dataset.appShell = 'databrowser'
+document.getElementById('mashlib')?.remove()
+document.body.insertAdjacentHTML('beforeend', `
+  <solid-ui-provider>
+    <a href="#MainContent" class="skip-link">Skip to main content</a>
+    <div class="app-main" tabindex="-1" aria-live="polite">
+      <div class="app-shell">
+        <main id="MainContent" class="app-view">
+          <div id="OutlineView" class="outline-view" aria-label="Resource browser"></div>
+        </main>
+      </div>
+    </div>
+  </solid-ui-provider>
+`)
+
+// 3. mashlib, then the data browser for this page's URL.
+await import('./mashlib.js')
+
+window.panes.runDataBrowser()
+
+// 4. The person's own panes and apps (./userTools.js): once logged in, the panes registered
+//    in their tool index are added, after asking about a site not allowed here before, and
+//    the apps in it are offered as "Open with" links.
+import('./userTools.js').then(async ({ userTools }) => {
+  const { store } = window.SolidLogic.solidLogicSingleton
+  const outliner = window.panes.getOutliner(document)
+  const subject = () => location.href
+  const tools = await userTools({
+    panes: window.panes,
+    store,
+    $rdf: window.$rdf,
+    authn: window.SolidLogic.authn,
+    subject,
+    show: () => outliner.GotoSubject(window.$rdf.sym(subject()), true, undefined, true, undefined)
+  })
+
+  window.addEventListener('popstate', () => tools.refresh())
+}).catch(error => console.warn('[browse] own panes and apps not set up: ' + (error && error.message ? error.message : error)))
+
+// 5. As databrowser.html: keep --app-header-height in step with the header.
+const header = document.getElementById('mainSolidUiHeader')
+
+if (header) {
+  const syncHeaderHeight = () => {
+    const height = header.getBoundingClientRect().height
+
+    if (height > 0) {
+      const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize)
+
+      document.documentElement.style.setProperty('--app-header-height', (height / rootFontSize) + 'rem')
+    }
+  }
+
+  syncHeaderHeight()
+  new ResizeObserver(syncHeaderHeight).observe(header)
+}
