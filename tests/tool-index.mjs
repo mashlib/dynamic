@@ -1,6 +1,7 @@
 // The person's own panes, from their tool index (mashlib/toolIndex.js, mashlib/dynamic#1).
 //
 //   node tests/tool-index.mjs     # needs the JSS pod of tests/pod.mjs on 127.0.0.1:8732
+//   PAGE=public/solidos/dist/browse.html node tests/tool-index.mjs     # the built copy
 //
 // The pod's preferences file links to settings/tool-index.ttl, which registers an external
 // app and an HTML tool (PodOS's own kinds, passed over) and two pane modules on other sites.
@@ -15,8 +16,9 @@ const WEBID = `${POD}profile/card.jsonld#me`
 const PASSWORD = process.env.POD_PASSWORD ?? readFileSync(new URL('../../jss-password.txt', import.meta.url), 'utf8').trim()
 const PROFILE_DIR = fileURLToPath(new URL('../.chrome-profile-tool-index/', import.meta.url))
 const SHOTS = fileURLToPath(new URL('../.shots/', import.meta.url))
-const BROWSE = `${POD}public/solidos/mashlib/browse.html?uri=${encodeURIComponent(POD + 'public/meetings/')}`
-const NOTE = `${POD}public/solidos/mashlib/browse.html?uri=${encodeURIComponent(POD + 'public/meetings/2026_11_04.md')}`
+const PAGE = process.env.PAGE ?? 'public/solidos/mashlib/browse.html' // or dist/browse.html, or index.html (the built copies)
+const BROWSE = `${POD}${PAGE}?uri=${encodeURIComponent(POD + 'public/meetings/')}`
+const NOTE = `${POD}${PAGE}?uri=${encodeURIComponent(POD + 'public/meetings/2026_11_04.md')}`
 const PANE = 'meetings-calendar'
 const NOTES = 'notes-reader'
 const SITES = ['melvincarvalho.github.io', 'solid-panes.github.io']
