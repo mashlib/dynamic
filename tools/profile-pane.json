@@ -54,5 +54,19 @@
     "lit-html": [
       "TemplateResult"
     ]
-  }
+  },
+  "patches": [
+    {
+      "file": "sections/projects/ProjectEditDialog.js",
+      "find": "      parsed.pathname === '/profile/card' &&\n",
+      "replace": "      (parsed.pathname.endsWith('/profile/card') || parsed.pathname.endsWith('/profile/card.jsonld')) &&\n",
+      "why": "A WebID was accepted only at the path `/profile/card`. Accept `card.jsonld` too, and a pod below a path."
+    },
+    {
+      "file": "sections/projects/ProjectEditDialog.js",
+      "find": "Please enter a valid WebID in the form https://example.com/profile/card#me.",
+      "replace": "Please enter a valid WebID, for example https://example.com/profile/card#me or https://example.com/profile/card.jsonld#me.",
+      "why": "The message shows both forms of a WebID."
+    }
+  ]
 }

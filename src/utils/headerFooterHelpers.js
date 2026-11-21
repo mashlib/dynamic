@@ -60,12 +60,21 @@ export async function getPodOwner (pod, store) {
   } else { // pod owner not declared in pod
     // @@ TODO: This is given the structure that NSS provides
     // This is a massive guess.  For old pods which don't have owner link
-    const guess = sym(`${pod.uri}profile/card#me`)
-    try {
-      // @ts-ignore  LiveStore always has fetcher
-      await store.fetcher.load(guess)
-    } catch (_err) {
-      console.error('Ooops. Guessed wrong pod owner webid {$guess} : can\'t load it.')
+    // Try the usual profile addresses in turn: `card`, then `card.jsonld` (JSS pods).
+    let guess = null
+    for (const path of ['profile/card#me', 'profile/card.jsonld#me']) {
+      const candidate = sym(`${pod.uri}${path}`)
+      try {
+        // @ts-ignore  LiveStore always has fetcher
+        await store.fetcher.load(candidate)
+        guess = candidate
+        break
+      } catch (_err) {
+        // not there: try the next
+      }
+    }
+    if (!guess) {
+      console.warn('Pod owner not declared in ' + pod + ' and no profile found at the usual addresses.')
       return null
     }
     if (store.holds(guess, ns.space('storage'), pod, guess.doc())) {
