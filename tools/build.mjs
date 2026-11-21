@@ -243,7 +243,7 @@ for (const [from, to] of bootSteps) {
 }
 writeFileSync(resolve(out, 'boot.js'), '// Made by tools/build.mjs from mashlib/boot.js: the joined copy of the data browser.\n' + boot)
 copyFileSync(resolve(root, 'mashlib/boot.css'), resolve(out, 'boot.css'))
-copyFileSync(resolve(root, 'mashlib/toolIndex.js'), resolve(out, 'toolIndex.js')) // the browse pages import it beside themselves
+for (const file of ['userTools.js', 'toolIndex.js']) copyFileSync(resolve(root, 'mashlib', file), resolve(out, file)) // the pages and boot.js import userTools.js beside themselves; it imports toolIndex.js
 
 const pageSteps = [
   ['<script src="../src/importmap.js"></script>', '<script src="manifest.js"></script>\n    <script src="../src/importmap.js"></script>'],
@@ -265,7 +265,7 @@ for (const name of ['databrowser.html', 'browse.html']) {
   const frontSteps = [
     ['<script src="../src/importmap.js"></script>', '<script src="dist/manifest.js"></script>\n    <script src="src/importmap.js"></script>'],
     ["await import('./src/index.js')", "await import('./dist/mashlib.js')"],
-    ["await import('./toolIndex.js')", "await import('./dist/toolIndex.js')"],
+    ["await import('./userTools.js')", "await import('./dist/userTools.js')"],
     ['<a class="browse-home" href="browse.html"', '<a class="browse-home" href="./"'],
     [/href="browse\.html\?uri=/g, 'href="./?uri='],
     // The front page is the one people share, so it carries the share-preview tags (picture: tools/og.html).

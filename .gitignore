@@ -8,3 +8,5 @@ node_modules/
 .chrome-profile-tool-index/
 .chrome-profile-jsonld/
 .chrome-profile-tix/
+.chrome-profile-tix-public/
+.chrome-profile-pod-tools/
