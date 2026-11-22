@@ -471,7 +471,8 @@ export default function (context) {
       provider.setAttribute('about', subject.toNT())
     }
 
-    const frame = framePaneFor(requiredPane)
+    // Only the main view (solo) is framed: a row expanded inside it is drawn as before.
+    const frame = options.solo ? framePaneFor(requiredPane) : null
     if (frame) {
       // The frame is offered first and drawn; what would have been drawn goes to it.
       const framed = relevantPanes.filter(pane => !thisOutline.framePanes.includes(pane))
@@ -1798,7 +1799,7 @@ export default function (context) {
           if (existing) return
         }
         const statusCode = authErrorStatus(detail, errObj)
-        if (framePaneFor(pane) && !(statusCode && !retriedAuthenticated && solidLogicSingleton.authn.currentUser())) {
+        if (options.solo && framePaneFor(pane) && !(statusCode && !retriedAuthenticated && solidLogicSingleton.authn.currentUser())) {
           // A frame pane is drawn whatever happened, and shows the error its own way.
           const detailText = typeof detail === 'string' ? detail : String((errObj && errObj.message) || detail || '')
           const requested = sf.requested[docUri]

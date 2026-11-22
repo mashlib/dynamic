@@ -68,25 +68,42 @@ async function addServerPane (url) {
   }
 }
 
+// The address of the server's loader: the second argument of the same call, or null.
+function serverLoader () {
+  for (const script of document.querySelectorAll('script:not([src])')) {
+    const call = script.textContent.match(/jssAddPanes\(\[[^\]]*\]\s*,\s*("(?:[^"\\]|\\.)*")/)
+    if (!call) continue
+    try { return new URL(JSON.parse(call[1]), location.href).href } catch { return null }
+  }
+  return null
+}
+
+const fromServer = serverPanes()
+const loader = fromServer.length ? serverLoader() : null
+
 // 3b. The server's loader asks for the view as soon as it has registered them
-//     (GotoSubject(subject, true, undefined, true)). Before the first view that is not needed: the
-//     first view comes next, with them. After it, when nothing has been registered since that
-//     subject was drawn, it would be the same view again: drawing it twice can drop a pane that
-//     has just opened, and a click made at that moment. Only a late pane draws the view again.
-{
+//     (GotoSubject(subject, true, undefined, true), for the page's address without its #…).
+//     Before the first view that is not needed: the first view comes next, with them. After it,
+//     when nothing has been registered since that document was drawn, it would be the same view
+//     again: drawing it twice can drop a pane that has just opened, and a click made at that
+//     moment. Only a late pane draws the view again. Only on a page with server panes, and only
+//     the loader's own call (its file is on the call's stack): links and panes are never held up.
+//     A browser whose stack does not name the file gets the second draw, as before.
+if (loader) {
   const outliner = window.panes.getOutliner(document)
   const gotoSubject = outliner.GotoSubject.bind(outliner)
+  const doc = (uri) => uri.split('#')[0]
   let drawn = null // { uri, panes }: what the last solo view showed, and how many panes there were
   outliner.GotoSubject = function (subject, expand, pane, solo, referrer, table, options) {
     const uri = subject && subject.uri
     const bare = expand && solo && !pane && !referrer && !table && !options
-    if (bare && (!drawn || (uri === drawn.uri && window.panes.list.length === drawn.panes))) return subject
+    if (bare && uri && (!drawn || (doc(uri) === doc(drawn.uri) && window.panes.list.length === drawn.panes)) &&
+        String(new Error().stack).includes(loader)) return subject
     if (solo && uri) drawn = { uri, panes: window.panes.list.length }
     return gotoSubject(subject, expand, pane, solo, referrer, table, options)
   }
 }
 
-const fromServer = serverPanes()
 if (fromServer.length) {
   await Promise.race([Promise.all(fromServer.map(addServerPane)), new Promise(resolve => setTimeout(resolve, PANES_WAIT))])
 }

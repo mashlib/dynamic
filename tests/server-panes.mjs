@@ -48,7 +48,7 @@ async function server (panes) {
   rmSync(DATA_DIR, { recursive: true, force: true })
   mkdirSync(DATA_DIR, { recursive: true })
   const proc = spawn('jss', ['start', '--port', String(PORT), '--host', '127.0.0.1', '--root', DATA_DIR, '--conneg',
-    '--single-user', '--single-user-name', 'alice', '--mashlib-module', MODULE, '--panes', panes.join(',')],
+    '--single-user', '--single-user-name', 'alice', '--mashlib-module', MODULE, ...(panes.length ? ['--panes', panes.join(',')] : [])],
   { stdio: 'ignore', detached: true })
   for (let i = 0; i < 100; i++) {
     if (await fetch(POD + 'public/').then(r => r.status < 500, () => false)) break
@@ -81,6 +81,29 @@ async function fresh () {
 let stop = null
 
 try {
+  // 0. No --panes: the page behaves as before. A link or pane asking for the thing already on
+  //    show (GotoSubject(subject, true, undefined, true), as solid-ui's links do) draws it again,
+  //    here after another pane view of it was opened.
+  stop = await server([])
+  await fresh()
+  await page.goto(POD + 'profile/card.jsonld')
+  await page.waitFor(() => !!document.querySelector('#OutlineView [data-outline-top]'), { timeout: 40000 })
+  await sleep(1500)
+  await page.evaluate(() => {
+    window.shownPanes = []
+    document.addEventListener('solid-panes:pane-shown', (e) => window.shownPanes.push(e.detail.name))
+    window.panes.getOutliner(document).GotoSubject(window.$rdf.sym(location.href), true, window.panes.byName('internal'), true)
+  })
+  await page.waitFor(() => window.shownPanes.includes('internal'), { timeout: 20000 })
+  await page.evaluate(() => {
+    document.querySelector('#OutlineView').firstElementChild.dataset.before = 'yes'
+    window.panes.getOutliner(document).GotoSubject(window.$rdf.sym(location.href), true, undefined, true, undefined)
+  })
+  await sleep(3000)
+  const again = await page.evaluate(() => ({ old: !!document.querySelector('#OutlineView [data-before]'), last: window.shownPanes[window.shownPanes.length - 1] }))
+  check('databrowser, no --panes: a link to the thing on show draws it again', !again.old && again.last !== 'internal', JSON.stringify(again))
+  await stop(); stop = null
+
   // 1. A --panes pane with chrome: 'none': while it is on show, no header and no offset.
   stop = await server([PANES + 'chromeless-pane.js'])
   await fresh()
@@ -125,6 +148,13 @@ try {
     const draws = await page.evaluate(() => window.frameDraws)
     check(`databrowser, --panes frame 2 s late (load ${run}): drawn, once`, !!f && draws === 1, `${draws} draws`)
   }
+  // The same on a page whose address has a #… (the loader asks for the document without it).
+  await fresh()
+  await page.goto(POD + 'profile/card.jsonld#me')
+  f = await page.waitFor(frame, { timeout: 40000 }).catch(() => null)
+  await sleep(3000)
+  const hashDraws = await page.evaluate(() => window.frameDraws)
+  check('databrowser, --panes frame 2 s late, page card#me: drawn, once', !!f && hashDraws === 1, `${hashDraws} draws`)
   await stop(); stop = null
 
   // 4. Later than the wait (7 s): the view is drawn without it, then again with it.
