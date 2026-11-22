@@ -120,7 +120,7 @@ export async function userTools ({ dom = document, panes, store, $rdf, authn, su
       if (there === pane) {
         // the same module, named twice
       } else if (!there) {
-        panes.register(pane)
+        ;(panes.registerPane || panes.register)(pane) // registerPane: not as one the server chose (mashlib/src/index.js)
         added = pane
       } else if (linked && pane.replaces === pane.name) {
         panes.list.splice(panes.list.indexOf(there), 1, pane)
@@ -130,8 +130,11 @@ export async function userTools ({ dom = document, panes, store, $rdf, authn, su
         console.info('[browse] pane "' + pane.name + '" from ' + url.href + ' passed over: one of that name is registered already')
       }
       if (linked && (pane.frame === true || asFrame.has(url.href)) && outliner && !outliner.framePanes.includes(pane)) {
-        outliner.framePanes.push(pane)
-        dom.dispatchEvent(new CustomEvent('mashlib:framepane', { detail: { pane } }))
+        if (panes.addFramePane) panes.addFramePane(pane)
+        else {
+          outliner.framePanes.push(pane)
+          dom.dispatchEvent(new CustomEvent('mashlib:framepane', { detail: { pane } }))
+        }
       }
       if (added) console.info('[browse] pane "' + pane.name + '" added from ' + url.href)
       return added

@@ -19,6 +19,43 @@ const global = window
 global.panes = { ...panes } // a module namespace is sealed; webpack's isn't, and runDataBrowser is added below
 global.mashlib = { versionInfo }
 
+// A frame pane (frame: true) is drawn for every subject (see solid-panes' outline manager). Only
+// someone who chose the pane can make it one: the page's own link (?pane=, ?frame=; userTools.js)
+// or the server, whose --panes list (JSS) is registered through window.panes.register. So a pane
+// registered that way that says frame: true is a frame. userTools.js registers the panes of a
+// person's tool index with registerPane, which does not do this.
+global.panes.addFramePane = function (pane) {
+  const outliner = panes.getOutliner(document)
+  if (!outliner || outliner.framePanes.includes(pane)) return
+  outliner.framePanes.push(pane)
+  document.dispatchEvent(new CustomEvent('mashlib:framepane', { detail: { pane } }))
+}
+global.panes.registerPane = panes.register
+global.panes.register = function (pane, ...rest) {
+  const result = panes.register(pane, ...rest)
+  if (pane && pane.frame === true && panes.list.includes(pane)) global.panes.addFramePane(pane)
+  return result
+}
+
+// No chrome: ?chrome=none, or a pane on show whose default export says chrome: 'none', puts
+// data-chrome="none" on <html>. mash.css (and browse.html, for its bar) then hide the page's
+// header and navigation and hold --app-header-height at 0. solid-panes:pane-shown comes from
+// the outline each time it draws the pane at its top; a pane without the flag brings them back.
+{
+  const asked = new URLSearchParams(location.search).get('chrome') === 'none'
+  let paneChrome = ''
+  const fitChrome = () => {
+    if (asked || paneChrome === 'none') document.documentElement.dataset.chrome = 'none'
+    else delete document.documentElement.dataset.chrome
+  }
+  document.addEventListener('solid-panes:pane-shown', (event) => { paneChrome = event.detail.pane.chrome || ''; fitChrome() })
+  // A frame is drawn for everything: if it wants no chrome, there is none from the start.
+  document.addEventListener('mashlib:framepane', (event) => {
+    if (panes.getOutliner(document).framePaneFor() === event.detail.pane && event.detail.pane.chrome === 'none') { paneChrome = 'none'; fitChrome() }
+  })
+  fitChrome()
+}
+
 layout.init()
 theme.init()
 

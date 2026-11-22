@@ -61,7 +61,7 @@ try {
   await page.close()
 }
 
-for (const suite of ['shell.mjs', ...(process.argv.includes('--pod') ? ['pod.mjs', 'browse-api.mjs'] : [])]) {
+for (const suite of ['shell.mjs', ...(process.argv.includes('--pod') ? ['pod.mjs', 'browse-api.mjs', 'server-panes.mjs'] : [])]) {
   console.log(`\n== tests/${suite}`)
   const run = spawnSync(process.execPath, [`${here}${suite}`], { encoding: 'utf8', timeout: 600000 })
   const lines = run.stdout.split('\n').filter(l => /^(PASS|FAIL|KNOWN)|^ +→/.test(l))
