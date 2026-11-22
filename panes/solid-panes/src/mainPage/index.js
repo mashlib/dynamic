@@ -4,7 +4,7 @@
  */
 
 import { LiveStore, NamedNode } from 'rdflib'
-import { authSession } from 'solid-logic'
+import { authn, authSession } from 'solid-logic'
 
 import { getOutliner, OutlineManager } from '../index.js'
 import { createHeader } from './header.js'
@@ -68,7 +68,14 @@ export async function initMainPage (
   ;(outliner)[LAST_RENDER_ENV_KEY] = renderEnvSignature(environment)
   const navigation = navigationFor(outliner, store)
   registerBrowserNavigation(navigation)
+  // Draw again only when who is logged in has changed since the view was drawn. A session
+  // restored after the first draw, with the same identity, must not throw away a pane that has
+  // just opened (or a click made at that moment).
+  const whoNow = () => authn.currentUser()?.uri || ''
+  let drawnAs = whoNow()
   const refreshNavigationAfterAuth = () => {
+    if (whoNow() === drawnAs) return
+    drawnAs = whoNow()
     resetPodContexts()
     navigation.show({ kind: 'restore', forceHeading: true }).catch((error) => {
       console.error('Failed to refresh navigation after an authentication change.', error)

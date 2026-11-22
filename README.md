@@ -208,6 +208,20 @@ More that the shell needed:
 
 `?published=issue-pane,contacts-pane` on any page swaps those panes back to their published npm builds. That is how each upstream finding below was checked: same behaviour with upstream's own build means it is not the conversion.
 
+## For a pane that is the whole app
+
+The browse page (`mashlib/browse.html`, and the front page `index.html` made from it) lets a pane take the page over. All of it is opt-in: a page or pane that asks for none of it sees no change. `tests/browse-api.mjs` checks each (on the local pod).
+
+| What | How |
+|---|---|
+| No browser bar | `chrome: 'none'` on a pane's default export: while it is the pane on show, `.browse-bar` and the "Open with" row are hidden, `--app-header-height` is `0px` (the body's top padding with it) and the outline's own pane header is hidden. `?chrome=none` does the same whatever is on show. A pane without it brings the bar back. The outline says which pane it drew at its top with `solid-panes:pane-shown` on the document (detail `{ pane, name, subjectUri, framedPane }`). |
+| Frame panes | `frame: true` on a pane named by `?pane=`, or any pane named by `?frame=<address>`: drawn for every subject, before every other choice (`ui:mintClass`, a `.js` file's source pane, …), and listed first. Its `render(subject, context, options)` gets a context of its own with `framedPane`, the pane that would have been drawn otherwise (the one asked for, if one was), and, when the subject could not be read, `loadError: { status, message }` (401, 403, 404, …), where the browser would otherwise show only its error. Picking another pane from the outline's pane menu draws that pane itself. |
+| Replacing a pane | `replaces: '<name>'`, equal to the pane's own `name`, on a pane named by `?pane=`: it takes the place in the list of the pane registered under that name (a built-in one, or a first copy) instead of being passed over, so `byName('<name>')` finds it. |
+| Logging in and out | `document.dispatchEvent(new CustomEvent('solid-login-request'))` does what the Log In button does (the issuer dialog, then the IdP); `detail: { issuer }` goes straight to that IdP. `solid-logout-request` does what Log Out does. Or `await mashlib.login(issuer?)`, `await mashlib.logout()`. Every page that loads mashlib answers these. |
+| Who is logged in | `solid-session-change` on the document, detail `{ webId }` (`null` when logged out): once the session is known if someone is logged in, then on each change. `SolidLogic.authSession.events` (`login`, `logout`, `sessionRestore`, `sessionChange`, `identityReplaced`) still fire as before. |
+
+A session restored after the view was drawn, as the same person, no longer draws the page again (it could drop a pane that had just opened, and a click made at that moment); only a change of who is logged in does. Likewise a pane from the tool index draws the page again only if it could be drawn for what is on show.
+
 ## Running on a pod
 
 [JSS](https://jss.live) serves an ES-module data browser with `--mashlib-module <url>`: for every resource a browser navigates to it returns a bare page that loads that module. `mashlib/boot.js` is that module; it adds the importmap and the `databrowser.html` markup and starts mashlib. Put this tree in the pod and SolidOS is served by the pod it browses:

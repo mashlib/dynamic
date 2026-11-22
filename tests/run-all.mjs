@@ -2,7 +2,7 @@
 //
 //   python3 -m http.server 8731 &      # in this directory
 //   node tests/run-all.mjs              # page checks + shell (public test pod)
-//   node tests/run-all.mjs --pod        # … + login/edit/create on the local JSS pod
+//   node tests/run-all.mjs --pod        # … + login/edit/create on the local JSS pod, and the browse page's API for panes
 //
 // Page checks are the in-page smoke tests (they write PASS/FAIL into a <pre>);
 // "load" checks import every module of a package on its own.
@@ -61,7 +61,7 @@ try {
   await page.close()
 }
 
-for (const suite of ['shell.mjs', ...(process.argv.includes('--pod') ? ['pod.mjs'] : [])]) {
+for (const suite of ['shell.mjs', ...(process.argv.includes('--pod') ? ['pod.mjs', 'browse-api.mjs'] : [])]) {
   console.log(`\n== tests/${suite}`)
   const run = spawnSync(process.execPath, [`${here}${suite}`], { encoding: 'utf8', timeout: 600000 })
   const lines = run.stdout.split('\n').filter(l => /^(PASS|FAIL|KNOWN)|^ +→/.test(l))

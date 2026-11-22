@@ -11,7 +11,10 @@
          so the page's own address can be bookmarked or sent to someone.
          ?pane=<address of a pane module> adds a pane (may be repeated). Once logged in, the panes
          registered in the person's tool index are added too (toolIndex.js). A pane is code, so
-         one from a site this browser has not allowed before is asked about first. -->
+         one from a site this browser has not allowed before is asked about first.
+         ?frame=<address of a pane module> adds a pane as a frame, drawn for every subject (as a
+         pane named by ?pane= whose default export says frame: true; see userTools.js).
+         ?chrome=none hides the bar, as a pane on show whose default export says chrome: 'none'. -->
     <script src="../src/importmap.js"></script>
     <style>
       :root { --browse-bar-height: 56px }
@@ -56,6 +59,13 @@
       }
       .browse-go:hover, .browse-go:focus-visible { background: #6a3bf0; outline: none }
       .browse-account { flex: none; display: flex; align-items: center }
+
+      /* No chrome (?chrome=none, or a pane on show with chrome: 'none'): the pane has the page. */
+      html[data-chrome="none"] .browse-bar,
+      html[data-chrome="none"] .browse-open-with,
+      html[data-chrome="none"] #OutlineView solid-ui-file-explorer-provider[data-outline-top] > solid-ui-file-explorer-header { display: none }
+      /* A question about a pane is still asked, above whatever the pane draws. */
+      html[data-chrome="none"] .browse-ask { position: fixed; z-index: 200; top: 16px; left: 16px; right: 16px; margin: 0 auto }
 
       /* The header takes the place of the data browser's own: the outline starts below it. */
       .browse-main { margin: 0; padding: 0 }
@@ -106,6 +116,8 @@
       const ready = panes.initializeProfileHeading(() => here() || location.href) // as upstream: with nothing on show, the page itself
       let request = 0
       let tools = null // set below, once SolidOS is up (./userTools.js)
+      const whoNow = () => SolidLogic.authn.currentUser()?.uri || ''
+      let drawnAs // who was logged in when the view on show was drawn; undefined before the first
 
       // The page's address says what is on show (?uri=…), one history entry per thing visited.
       function remember (uri, replace) {
@@ -120,6 +132,7 @@
       const gotoSubject = outliner.GotoSubject.bind(outliner)
       outliner.GotoSubject = function (subject, expand, pane, solo, referrer, table, options) {
         if (solo && subject && subject.uri) {
+          drawnAs = whoNow()
           field.value = subject.uri
           remember(subject.uri, false)
           welcome.hidden = true
@@ -178,8 +191,24 @@
 
       // The bar can wrap on a narrow screen: tell the layout how tall it really is.
       const bar = dom.querySelector('.browse-bar')
-      const measure = () => dom.documentElement.style.setProperty('--app-header-height', bar.getBoundingClientRect().height + 'px')
-      measure()
+      const measure = () => dom.documentElement.style.setProperty('--app-header-height', (chromeless() ? 0 : bar.getBoundingClientRect().height) + 'px')
+
+      // No bar while ?chrome=none says so, or while the pane on show says chrome: 'none'
+      // (solid-panes:pane-shown comes from the outline each time it draws the pane at its top).
+      const noChrome = new URLSearchParams(location.search).get('chrome') === 'none'
+      let paneChrome = ''
+      const chromeless = () => noChrome || paneChrome === 'none'
+      const fitChrome = () => {
+        if (chromeless()) dom.documentElement.dataset.chrome = 'none'
+        else delete dom.documentElement.dataset.chrome
+        measure()
+      }
+      dom.addEventListener('solid-panes:pane-shown', (event) => { paneChrome = event.detail.pane.chrome || ''; fitChrome() })
+      // A frame is drawn for everything: if it wants no bar, there is none from the start.
+      dom.addEventListener('mashlib:framepane', (event) => {
+        if (outliner.framePaneFor() === event.detail.pane && event.detail.pane.chrome === 'none') { paneChrome = 'none'; fitChrome() }
+      })
+      fitChrome()
       new ResizeObserver(measure).observe(bar)
 
       // The person's own panes and apps (./userTools.js): the panes named by ?pane=, and, once
@@ -190,7 +219,8 @@
         dom, panes, store, $rdf, authn: SolidLogic.authn,
         subject: here,
         show: () => go(here(), true),
-        linkPanes: [...new Set(new URLSearchParams(location.search).getAll('pane'))].map(paneAddress)
+        linkPanes: [...new Set(new URLSearchParams(location.search).getAll('pane'))].map(paneAddress),
+        framePanes: [...new Set(new URLSearchParams(location.search).getAll('frame'))].map(paneAddress)
       })
 
       // Back and forward: show what the page's address now says. (mashlib's own handler would
@@ -202,9 +232,11 @@
         else { field.value = ''; welcome.hidden = false; dom.getElementById('OutlineView').replaceChildren() }
       })
 
-      // Logging in or out changes what can be seen: show the same thing again.
+      // Logging in or out changes what can be seen: show the same thing again. Only then: a
+      // session restored after the view was drawn, as the same person, draws nothing again (it
+      // would drop a pane that has just opened, and a click made at that moment).
       for (const event of ['login', 'sessionRestore', 'logout', 'sessionChange', 'identityReplaced']) {
-        SolidLogic.authn.authSession.events.on(event, () => { if (here()) go(here(), true) })
+        SolidLogic.authn.authSession.events.on(event, () => { if (here() && drawnAs !== undefined && whoNow() !== drawnAs) go(here(), true) })
       }
 
       if (here()) go(here(), true)

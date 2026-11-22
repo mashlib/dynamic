@@ -89,6 +89,49 @@ global.panes.runDataBrowser = function (uri) {
 
 }
 
+// Logging in and out, for panes and pages (mashlib dynamic): the same as pressing the account
+// buttons, without reaching into their shadow roots.
+//
+//   document.dispatchEvent(new CustomEvent('solid-login-request'))          // the issuer dialog, then the IdP
+//   document.dispatchEvent(new CustomEvent('solid-login-request', { detail: { issuer } }))  // straight to that IdP
+//   document.dispatchEvent(new CustomEvent('solid-logout-request'))
+//   await mashlib.login(issuer?) · await mashlib.logout()
+//
+// `solid-session-change` is dispatched on the document with detail { webId } (null when logged out)
+// when who is logged in changes: once the session is known if someone is logged in (a session
+// restored, or a login coming back), then on each login and logout.
+const pageAuth = () => document.querySelector('solid-ui-provider')?.auth
+global.mashlib.login = async function (issuer) {
+  const auth = pageAuth()
+  if (!auth) throw new Error('No <solid-ui-provider> on this page: nothing to log in with')
+  return auth.login(typeof issuer === 'string' && issuer ? issuer : undefined)
+}
+global.mashlib.logout = async function () {
+  const auth = pageAuth()
+  return auth ? auth.logout() : SolidLogic.authSession.logout()
+}
+const reportFailure = (what) => (error) => console.error(`Failed to ${what}.`, error)
+document.addEventListener('solid-login-request', (event) => {
+  global.mashlib.login(event.detail?.issuer).catch(reportFailure('log in'))
+})
+document.addEventListener('solid-logout-request', () => {
+  global.mashlib.logout().catch(reportFailure('log out'))
+})
+{
+  let announced = null
+  const announce = () => {
+    const webId = SolidLogic.authn.currentUser()?.uri || null
+    if (webId === announced) return
+    announced = webId
+    document.dispatchEvent(new CustomEvent('solid-session-change', { detail: { webId } }))
+  }
+  for (const event of ['login', 'sessionRestore', 'logout', 'sessionChange', 'identityReplaced']) {
+    SolidLogic.authSession.events.on(event, announce)
+  }
+  // The session may be restored before these listeners are added (solid-ui-provider starts it).
+  SolidLogic.authn.checkUser().then(announce, () => undefined)
+}
+
 // This uses `popstate`, the mechanism browsers without the Navigation API fall back to (see
 // NAVIGATION API FALLBACK in solid-panes' navigation/browserEvents.ts). It is kept for pages
 // that load mashlib without running the main page, which have nothing else that reacts to back

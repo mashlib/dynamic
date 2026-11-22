@@ -42,6 +42,11 @@ export default function (context) {
 
   this.document = context.dom
   this.context = context
+  // Frame panes (mashlib dynamic): a page that loads a pane meant to hold every view (a shell)
+  // puts it here. While one is registered it is drawn for every subject, before any other
+  // choice, and is told in its context which pane would have been drawn (`framedPane`) and,
+  // when the subject could not be read, why (`loadError`: { status, message }).
+  this.framePanes = []
   this.outlineIcons = outlineIcons
   this.labeller = this.labeller || {}
   this.labeller.LanguagePreference = '' // for now
@@ -276,13 +281,36 @@ export default function (context) {
     }
   }
 
+  // The frame pane in force, if any: the first registered one. A view that asks for a frame
+  // itself gets that frame.
+  function framePaneFor (requiredPane) {
+    const frames = thisOutline.framePanes.filter(frame => paneRegistry.list.includes(frame))
+    if (requiredPane && frames.includes(requiredPane)) return requiredPane
+    return frames[0] || null
+  }
+  this.framePaneFor = framePaneFor
+
+  // A frame pane is given a context of its own, with what it frames; other panes get the shared one.
+  const paneContext = (provider) => provider.frameContext ? { ...context, ...provider.frameContext } : context
+
+  // The pane at the top of the outline (not one inside a folder view) was drawn: say so, so the
+  // page can fit its own chrome to it (see the pane's `chrome` property).
+  function announcePaneShown (provider, subject, pane) {
+    if (!provider.isConnected || provider.parentElement?.closest(EXPLORER_PROVIDER_TAG)) return
+    if (!getOutlineContainer().contains(provider)) return
+    provider.setAttribute('data-outline-top', '')
+    dom.dispatchEvent(new CustomEvent('solid-panes:pane-shown', {
+      detail: { pane, name: pane.name, subjectUri: subject.uri, framedPane: provider.frameContext?.framedPane }
+    }))
+  }
+
   function renderPaneIntoProvider (provider, subject, pane, options) {
     if (!provider || !pane) return
 
     let paneDiv
     try {
       UI.log.info('outline: Rendering pane (menu): ' + pane.name)
-      paneDiv = pane.render(subject, context, options)
+      paneDiv = pane.render(subject, paneContext(provider), options)
     } catch (e) {
       paneDiv = dom.createElement('div')
       paneDiv.setAttribute('class', 'exceptionPane')
@@ -293,6 +321,7 @@ export default function (context) {
 
     composeExplorer(provider, subject, pane, paneDiv)
     renderedPanes.set(provider, { pane, subjectUri: subject.uri })
+    announcePaneShown(provider, subject, pane)
   }
 
   function openPaneInPlace (provider, subject, pane) {
@@ -303,6 +332,7 @@ export default function (context) {
 
     setQueryButtonVisibility(!!pane.requireQueryButton)
     provider.pane = pane
+    provider.frameContext = null // picked from the menu: drawn as itself
     renderPaneIntoProvider(provider, subject, pane, explorerStates.get(provider)?.options || {})
   }
 
@@ -326,7 +356,7 @@ export default function (context) {
       try {
         paneElement = pane.render(
           $rdf.sym(subjectUri),
-          context,
+          paneContext(provider),
           provider.paneRenderOptions || explorerStates.get(provider)?.options || {}
         )
       } catch (error) {
@@ -441,8 +471,22 @@ export default function (context) {
       provider.setAttribute('about', subject.toNT())
     }
 
-    provider.relevantPanes = relevantPanes
-    provider.pane = requiredPane || UI.getPreferredPane(subject, context, relevantPanes)
+    const frame = framePaneFor(requiredPane)
+    if (frame) {
+      // The frame is offered first and drawn; what would have been drawn goes to it.
+      const framed = relevantPanes.filter(pane => !thisOutline.framePanes.includes(pane))
+      const framedPane = requiredPane && requiredPane !== frame
+        ? requiredPane
+        : framed.length ? UI.getPreferredPane(subject, context, framed) : undefined
+      provider.relevantPanes = [frame, ...framed]
+      provider.pane = frame
+      provider.frameContext = { framedPane, loadError: options.loadError }
+    } else {
+      provider.relevantPanes = relevantPanes
+      provider.pane = requiredPane || UI.getPreferredPane(subject, context, relevantPanes)
+      provider.frameContext = null
+    }
+    relevantPanes = provider.relevantPanes
     const isRootResource = !!(subject && subject.uri && subject.site && subject.site().uri === subject.uri)
     const viewerPodOnly = !!options.headerOnlyInViewerPod
     const showHeader = !subject.uri.endsWith('/index.ttl#this') && deriveExplorerHeader({
@@ -484,6 +528,7 @@ export default function (context) {
       // Only panes that update their own DOM can safely reuse a render. Other
       // panes may read changing store data (including defaultPane).
       composeExplorer(provider, subject, provider.pane)
+      announcePaneShown(provider, subject, provider.pane)
     } else if (provider.pane) {
       renderPaneIntoProvider(provider, subject, provider.pane, options)
     } else {
@@ -1568,8 +1613,12 @@ export default function (context) {
     // var requTerm = subject.uri ? kb.sym($rdf.uri.docpart(subject.uri)) : subject
     // A solo view the viewer may not read shows only its access error, never a fallback view.
     let soloAccessDenied = false
+    // ...unless a frame pane is in force: it is drawn anyway, and told why the subject is missing.
+    let frameLoadError = null
 
     function render () {
+      if (frameLoadError && sf.getState(subject.doc().uri) === 'fetched') frameLoadError = null
+      const renderOptions = frameLoadError ? { ...options, loadError: frameLoadError } : options
       if (soloAccessDenied) {
         // A denial seen before the session was ready is lifted once the document loads.
         if (sf.getState(subject.doc().uri) !== 'fetched') return false
@@ -1583,9 +1632,9 @@ export default function (context) {
       UI.log.info('@@ REPAINTING ')
       if (!already) {
         // first expand
-        newTable = propertyTable(subject, undefined, pane, options)
+        newTable = propertyTable(subject, undefined, pane, renderOptions)
       } else {
-        newTable = propertyTable(subject, p, pane, options)
+        newTable = propertyTable(subject, p, pane, renderOptions)
       }
       already = true
       if (newTable !== p) {
@@ -1749,6 +1798,16 @@ export default function (context) {
           if (existing) return
         }
         const statusCode = authErrorStatus(detail, errObj)
+        if (framePaneFor(pane) && !(statusCode && !retriedAuthenticated && solidLogicSingleton.authn.currentUser())) {
+          // A frame pane is drawn whatever happened, and shows the error its own way.
+          const detailText = typeof detail === 'string' ? detail : String((errObj && errObj.message) || detail || '')
+          const requested = sf.requested[docUri]
+          const status = statusCode || errObj?.status || errObj?.response?.status ||
+            (typeof requested === 'number' ? requested : Number((detailText.match(/status:? (\d{3})/) || [])[1]) || 0)
+          frameLoadError = { status, message: detailText }
+          render()
+          return
+        }
         if (statusCode && options.solo) {
           // The denial may answer a request made before the session was restored.
           if (!retriedAuthenticated && solidLogicSingleton.authn.currentUser()) {
