@@ -208,24 +208,12 @@
 
       // The bar can wrap on a narrow screen: tell the layout how tall it really is.
       const bar = dom.querySelector('.browse-bar')
-      const measure = () => dom.documentElement.style.setProperty('--app-header-height', (chromeless() ? 0 : bar.getBoundingClientRect().height) + 'px')
-
-      // No bar while ?chrome=none says so, or while the pane on show says chrome: 'none'
-      // (solid-panes:pane-shown comes from the outline each time it draws the pane at its top).
-      const noChrome = new URLSearchParams(location.search).get('chrome') === 'none'
-      let paneChrome = ''
-      const chromeless = () => noChrome || paneChrome === 'none'
-      const fitChrome = () => {
-        if (chromeless()) dom.documentElement.dataset.chrome = 'none'
-        else delete dom.documentElement.dataset.chrome
-        measure()
+      // (With no chrome, html[data-chrome="none"], mashlib's stylesheet holds the offset at 0, and
+      // the bar's height is kept for when it comes back.)
+      const measure = () => {
+        if (dom.documentElement.dataset.chrome !== 'none') dom.documentElement.style.setProperty('--app-header-height', bar.getBoundingClientRect().height + 'px')
       }
-      dom.addEventListener('solid-panes:pane-shown', (event) => { paneChrome = event.detail.pane.chrome || ''; fitChrome() })
-      // A frame is drawn for everything: if it wants no bar, there is none from the start.
-      dom.addEventListener('mashlib:framepane', (event) => {
-        if (outliner.framePaneFor() === event.detail.pane && event.detail.pane.chrome === 'none') { paneChrome = 'none'; fitChrome() }
-      })
-      fitChrome()
+      measure()
       new ResizeObserver(measure).observe(bar)
 
       // The person's own panes and apps (./userTools.js): the panes named by ?pane=, and, once

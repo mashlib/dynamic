@@ -2603,6 +2603,16 @@
   --app-header-height: 3.75rem;
 }
 
+
+html[data-chrome="none"] {
+  --app-header-height: 0px !important;
+}
+html[data-chrome="none"] solid-panes-header,
+html[data-chrome="none"] solid-panes-navbar,
+html[data-chrome="none"] #OutlineView solid-ui-file-explorer-provider[data-outline-top] > solid-ui-file-explorer-header {
+  display: none !important;
+}
+
 html {
   margin: 0;
   padding: 0;

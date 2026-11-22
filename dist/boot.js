@@ -42,6 +42,56 @@ document.body.insertAdjacentHTML('beforeend', `
 // 3. mashlib, then the data browser for this page's URL.
 await import('./mashlib.js')
 
+// 3a. The server's own panes (JSS --panes) before the first view, so that the view is drawn with
+//     them (a frame pane, or a pane that wins the choice) instead of being drawn once without
+//     them and never again. The server's page names them in its call to jssAddPanes([...]); its
+//     loader (pane-loader.js) then finds them registered. A pane that has not arrived within
+//     PANES_WAIT ms is left to that loader, which draws the view again when it registers it.
+const PANES_WAIT = 4000
+
+function serverPanes () {
+  for (const script of document.querySelectorAll('script:not([src])')) {
+    const call = script.textContent.match(/jssAddPanes\((\[[^\]]*\])/)
+    if (!call) continue
+    try { return JSON.parse(call[1]).filter(url => typeof url === 'string' && /^https?:/.test(new URL(url, location.href).protocol)) } catch { return [] }
+  }
+  return []
+}
+
+async function addServerPane (url) {
+  try {
+    const pane = (await import(new URL(url, location.href).href)).default
+    if (!pane || typeof pane.name !== 'string' || !pane.name || typeof pane.label !== 'function' || typeof pane.render !== 'function') return
+    if (window.panes.list.some(p => p.name === pane.name)) return
+    window.panes.register(pane) // as the server's loader would: frame: true counts (src/index.js)
+  } catch (error) {
+    console.warn('[boot] server pane not loaded yet: ' + url + ': ' + (error && error.message ? error.message : error))
+  }
+}
+
+// 3b. The server's loader asks for the view as soon as it has registered them
+//     (GotoSubject(subject, true, undefined, true)). Before the first view that is not needed: the
+//     first view comes next, with them. After it, when nothing has been registered since that
+//     subject was drawn, it would be the same view again: drawing it twice can drop a pane that
+//     has just opened, and a click made at that moment. Only a late pane draws the view again.
+{
+  const outliner = window.panes.getOutliner(document)
+  const gotoSubject = outliner.GotoSubject.bind(outliner)
+  let drawn = null // { uri, panes }: what the last solo view showed, and how many panes there were
+  outliner.GotoSubject = function (subject, expand, pane, solo, referrer, table, options) {
+    const uri = subject && subject.uri
+    const bare = expand && solo && !pane && !referrer && !table && !options
+    if (bare && (!drawn || (uri === drawn.uri && window.panes.list.length === drawn.panes))) return subject
+    if (solo && uri) drawn = { uri, panes: window.panes.list.length }
+    return gotoSubject(subject, expand, pane, solo, referrer, table, options)
+  }
+}
+
+const fromServer = serverPanes()
+if (fromServer.length) {
+  await Promise.race([Promise.all(fromServer.map(addServerPane)), new Promise(resolve => setTimeout(resolve, PANES_WAIT))])
+}
+
 window.panes.runDataBrowser()
 
 // 4. The person's own panes and apps (./userTools.js): once logged in, the panes registered
