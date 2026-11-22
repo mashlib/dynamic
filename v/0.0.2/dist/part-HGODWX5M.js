@@ -1,0 +1,1 @@
+function t(i,n){return customElements.get(i)||customElements.define(i,n),n}function e(i){return(n,r)=>{if(r&&typeof r.addInitializer=="function"){r.addInitializer(()=>t(i,n));return}return t(i,n)}}export{t as a,e as b};
