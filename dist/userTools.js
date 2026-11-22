@@ -10,8 +10,16 @@
 // how to show it again (show). This file brings its own question box and link row, and puts
 // them above #OutlineView unless the page already has them.
 //
-//   const tools = await userTools({ panes, store, $rdf, authn, subject, show, linkPanes })
+//   const tools = await userTools({ panes, store, $rdf, authn, subject, show, linkPanes, framePanes })
 //   tools.refresh()      // what is on show changed: offer the apps that fit it
+//
+// Two things only a pane named by the link may do (a tool index pane may not):
+// - `frame: true` in its default export (or its address given as ?frame=, framePanes here)
+//   makes it a frame: it is drawn for every subject, before any other choice, and given the
+//   pane that would have been drawn as context.framedPane (see solid-panes' outline manager).
+// - `replaces: '<name>'`, equal to its own name, makes it take the place of the pane already
+//   registered under that name (a built-in one, or a copy added first), instead of being
+//   passed over.
 
 const ALLOWED = 'mashlib.panes.allowed' // sites whose panes this browser has allowed
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
@@ -88,25 +96,60 @@ function furniture (dom) {
   }
 }
 
-export async function userTools ({ dom = document, panes, store, $rdf, authn, subject, show, linkPanes = [] }) {
+export async function userTools ({ dom = document, panes, store, $rdf, authn, subject, show, linkPanes = [], framePanes = [] }) {
   furniture(dom)
 
   const allowed = () => { try { return JSON.parse(localStorage.getItem(ALLOWED)) || [] } catch { return [] } }
   const allow = (origin) => { try { localStorage.setItem(ALLOWED, JSON.stringify([...new Set([...allowed(), origin])])) } catch { /* private window: this visit only */ } }
   const isTrusted = (url) => url.origin === location.origin || allowed().includes(url.origin)
 
+  // The panes named by the link; those of them that are frames.
+  const fromLink = new Set([...linkPanes, ...framePanes].filter(Boolean).map(url => url.href))
+  const asFrame = new Set(framePanes.filter(Boolean).map(url => url.href))
+  const outliner = panes.getOutliner(dom)
+
+  // The pane, if it was added now; null if it was not (or one of that name was there already).
   async function addPane (url) {
     try {
       const module = await import(url.href)
       const pane = module.default
       if (!pane || typeof pane.label !== 'function' || typeof pane.render !== 'function' || !pane.name) throw new Error('its default export is not a pane (name, label, render)')
-      if (!panes.byName(pane.name)) panes.register(pane)
-      console.info('[browse] pane "' + pane.name + '" added from ' + url.href)
-      return true
+      const linked = fromLink.has(url.href)
+      const there = panes.list.find(p => p.name === pane.name)
+      let added = null
+      if (there === pane) {
+        // the same module, named twice
+      } else if (!there) {
+        panes.register(pane)
+        added = pane
+      } else if (linked && pane.replaces === pane.name) {
+        panes.list.splice(panes.list.indexOf(there), 1, pane)
+        added = pane
+        console.info('[browse] pane "' + pane.name + '" from ' + url.href + ' replaces the one registered before')
+      } else {
+        console.info('[browse] pane "' + pane.name + '" from ' + url.href + ' passed over: one of that name is registered already')
+      }
+      if (linked && (pane.frame === true || asFrame.has(url.href)) && outliner && !outliner.framePanes.includes(pane)) {
+        outliner.framePanes.push(pane)
+        dom.dispatchEvent(new CustomEvent('mashlib:framepane', { detail: { pane } }))
+      }
+      if (added) console.info('[browse] pane "' + pane.name + '" added from ' + url.href)
+      return added
     } catch (error) {
       console.warn('[browse] pane not added: ' + url.href + ': ' + (error && error.message ? error.message : error))
-      return false
+      return null
     }
+  }
+
+  // Draw what is on show again only if a pane just added could be drawn for it.
+  const relevantToShown = (added) => {
+    const uri = subject()
+    if (!uri) return false
+    const thing = $rdf.sym(uri)
+    return added.some(pane => {
+      if (outliner && outliner.framePanes.includes(pane)) return true
+      try { return !!pane.label(thing, outliner ? outliner.context : {}) } catch { return true }
+    })
   }
 
   // Ask about one site at a time; the answer covers every pane named from it.
@@ -124,8 +167,8 @@ export async function userTools ({ dom = document, panes, store, $rdf, authn, su
     })
   }
 
-  // Allowed panes go straight in, but never hold the page up for long. True if one was added.
-  const addTrusted = async (urls) => (await Promise.race([Promise.all(urls.map(addPane)), new Promise(resolve => setTimeout(() => resolve([]), 5000))])).some(Boolean)
+  // Allowed panes go straight in, but never hold the page up for long. The panes added.
+  const addTrusted = async (urls) => (await Promise.race([Promise.all(urls.map(addPane)), new Promise(resolve => setTimeout(() => resolve([]), 5000))])).filter(Boolean)
   // The rest are asked about, one site at a time and one question on screen at a time.
   let asking = Promise.resolve()
   const askAbout = (urls, from) => (asking = asking.then(async () => {
@@ -135,8 +178,8 @@ export async function userTools ({ dom = document, panes, store, $rdf, authn, su
         if (!await ask(origin, fromSite, from)) continue
         allow(origin)
       }
-      const added = await Promise.all(fromSite.map(addPane))
-      if (added.some(Boolean) && subject()) show() // show the same thing again, with the new pane
+      const added = (await Promise.all(fromSite.map(addPane))).filter(Boolean)
+      if (relevantToShown(added)) show() // show the same thing again, with the new pane
     }
   }))
 
@@ -186,7 +229,7 @@ export async function userTools ({ dom = document, panes, store, $rdf, authn, su
       offerApps()
       const urls = [...new Map(registered.map(entry => paneAddress(entry.url)).filter(Boolean).map(url => [url.href, url])).values()].slice(0, 20)
       console.info('[browse] tool index of ' + me.uri + ': ' + urls.length + ' pane(s), ' + apps.length + ' app(s)')
-      if (await addTrusted(urls.filter(isTrusted)) && subject()) show()
+      if (relevantToShown(await addTrusted(urls.filter(isTrusted)))) show()
       askAbout(urls.filter(url => !isTrusted(url)), 'Your tool index')
     } catch (error) {
       console.warn('[browse] tool index not read: ' + (error && error.message ? error.message : error))
@@ -194,7 +237,7 @@ export async function userTools ({ dom = document, panes, store, $rdf, authn, su
   }
 
   // Panes named by the link: the allowed ones are in before the first view.
-  const named = linkPanes.filter(Boolean).slice(0, 10)
+  const named = [...new Map([...linkPanes, ...framePanes].filter(Boolean).map(url => [url.href, url])).values()].slice(0, 10)
   await addTrusted(named.filter(isTrusted))
   askAbout(named.filter(url => !isTrusted(url)), 'This link')
 
