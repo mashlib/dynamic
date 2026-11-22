@@ -37,15 +37,15 @@ global.panes.register = function (pane, ...rest) {
   return result
 }
 
-// No chrome: ?chrome=none, or a pane on show whose default export says chrome: 'none', puts
-// data-chrome="none" on <html>. mash.css (and browse.html, for its bar) then hide the page's
-// header and navigation and hold --app-header-height at 0. solid-panes:pane-shown comes from
-// the outline each time it draws the pane at its top; a pane without the flag brings them back.
+// No chrome: a pane on show whose default export says chrome: 'none' puts data-chrome="none"
+// on <html>. mash.css (and browse.html, for its bar) then hide the page's header and navigation
+// and hold --app-header-height at 0. solid-panes:pane-shown comes from the outline each time it
+// draws the pane at its top; a pane without the flag brings them back. Only a pane can ask: a
+// link (the page's address) cannot hide the bar, the login or the outline header.
 {
-  const asked = new URLSearchParams(location.search).get('chrome') === 'none'
   let paneChrome = ''
   const fitChrome = () => {
-    if (asked || paneChrome === 'none') document.documentElement.dataset.chrome = 'none'
+    if (paneChrome === 'none') document.documentElement.dataset.chrome = 'none'
     else delete document.documentElement.dataset.chrome
   }
   document.addEventListener('solid-panes:pane-shown', (event) => { paneChrome = event.detail.pane.chrome || ''; fitChrome() })

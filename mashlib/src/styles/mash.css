@@ -11,7 +11,7 @@
   --app-header-height: 3.75rem;
 }
 
-/* No chrome (mashlib dynamic): ?chrome=none, or a pane on show with chrome: 'none' (see
+/* No chrome (mashlib dynamic): a pane on show with chrome: 'none' (see
    mashlib/src/index.js). The pane has the page: no header, no navigation, no offset.
    !important so it wins over the height a page writes on <html> as it measures its header. */
 html[data-chrome="none"] {

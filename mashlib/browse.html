@@ -14,7 +14,8 @@
          one from a site this browser has not allowed before is asked about first.
          ?frame=<address of a pane module> adds a pane as a frame, drawn for every subject (as a
          pane named by ?pane= whose default export says frame: true; see userTools.js).
-         ?chrome=none hides the bar, as a pane on show whose default export says chrome: 'none'. -->
+         A pane on show whose default export says chrome: 'none' hides the bar; the address
+         cannot. -->
     <script src="../src/importmap.js"></script>
     <style>
       :root { --browse-bar-height: 56px }
@@ -60,7 +61,7 @@
       .browse-go:hover, .browse-go:focus-visible { background: #6a3bf0; outline: none }
       .browse-account { flex: none; display: flex; align-items: center }
 
-      /* No chrome (?chrome=none, or a pane on show with chrome: 'none'): the pane has the page. */
+      /* No chrome (a pane on show with chrome: 'none'): the pane has the page. */
       html[data-chrome="none"] .browse-bar,
       html[data-chrome="none"] .browse-open-with,
       html[data-chrome="none"] #OutlineView solid-ui-file-explorer-provider[data-outline-top] > solid-ui-file-explorer-header { display: none }

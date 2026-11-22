@@ -56,11 +56,20 @@ rmSync(PROFILE_DIR, { recursive: true, force: true })
 const page = await launch({ profile: PROFILE_DIR, port: 9337 })
 
 try {
-  // 1. ?chrome=none: no bar, no offset, whatever pane is drawn.
+  // 1. ?chrome=none alone (a link) hides nothing: the bar, the login and the outline header stay.
+  //    Only a pane on show can ask for no chrome: a frame pane like Commons' shell still can.
+  const loginShown = () => { const a = document.querySelector('.browse-account solid-ui-account'); return !!a && a.getBoundingClientRect().height > 0 }
   await open({ chrome: 'none', uri: POD + 'public/' })
   await page.waitFor(() => !!document.querySelector('#OutlineView .paneDiv'), { timeout: 40000 })
+  await sleep(1000)
   let b = await page.evaluate(bar)
-  check('?chrome=none: the bar is hidden and the offset is 0', !b.shown && b.offset === '0px' && b.top === 0, JSON.stringify(b))
+  const login = await page.evaluate(loginShown)
+  const marked = await page.evaluate(() => document.documentElement.dataset.chrome || '')
+  check('?chrome=none with no frame pane: the bar and the login stay', b.shown && parseFloat(b.offset) > 0 && b.top > 0 && login && marked === '', JSON.stringify({ ...b, login, marked }))
+  await open({ chrome: 'none', pane: FRAME, uri: POD + 'public/' })
+  await page.waitFor(frame, { timeout: 40000 })
+  b = await page.evaluate(bar)
+  check("?chrome=none with a frame pane that says chrome: 'none': the bar and the login are hidden", !b.shown && b.offset === '0px' && !(await page.evaluate(loginShown)), JSON.stringify(b))
 
   // 2. A pane with chrome: 'none' hides the bar while it is on show; another pane brings it back.
   await open({ pane: CHROMELESS, uri: POD + 'public/' })
@@ -79,6 +88,16 @@ try {
   b = await page.evaluate(bar)
   check("frame with chrome: 'none': no bar", !b.shown && b.offset === '0px', JSON.stringify(b))
   check('frame: offered first in the pane list', await page.evaluate(() => document.querySelector('#OutlineView [data-outline-top]').relevantPanes[0].name === 'test-frame'))
+  // A row expanded inside the main view (as a click on its triangle does) is drawn as before,
+  // never with the frame inside it.
+  const nested = await page.evaluate(async (uri) => {
+    const row = document.createElement('div')
+    document.getElementById('OutlineView').appendChild(row)
+    window.panes.getOutliner(document).outlineExpand(row, window.$rdf.sym(uri))
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    return { frame: !!row.querySelector('.test-frame'), drawn: row.childElementCount > 0 }
+  }, POD + 'profile/card.jsonld#me')
+  check('frame: not drawn inside a nested expanded row', nested.drawn && !nested.frame, JSON.stringify(nested))
   await page.evaluate((uri) => window.panes.getOutliner(document).GotoSubject(window.$rdf.sym(uri), true, undefined, true), POD + 'profile/card.jsonld#me')
   f = await page.waitFor((uri) => { const f = document.querySelector('#OutlineView .test-frame'); return f && f.dataset.subject === uri && { ...f.dataset } }, { args: [POD + 'profile/card.jsonld#me'], timeout: 40000 })
   check('frame: drawn for a profile too, around the profile pane', f.framed === 'profile', JSON.stringify(f))
